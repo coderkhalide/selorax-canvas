@@ -1,0 +1,9 @@
+{
+  "name": "spacetime",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "spacetimedb": "^2.0.1",
+    "typescript": "^5.4.0"
+  }
+}

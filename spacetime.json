@@ -1,0 +1,8 @@
+{
+  "module-path": "spacetime",
+  "dev": {
+    "run": "npm run dev"
+  },
+  "database": "selorax-canvas",
+  "server": "maincloud"
+}

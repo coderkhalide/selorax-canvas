@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Pages ─────────────────────────────────────────────────────────────────────
+model Page {
+  id                 String    @id @default(cuid())
+  tenantId           String    @map("tenant_id")
+  slug               String
+  pageType           String    @map("page_type")
+  title              String?
+  publishedVersionId String?   @map("published_version_id")
+  metaTitle          String?   @map("meta_title")
+  metaDescription    String?   @db.Text @map("meta_description")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  publishedAt        DateTime? @map("published_at")
+
+  versions     PageVersion[]
+  experiments  Experiment[]
+  funnelSteps  FunnelStep[]
+
+  @@unique([tenantId, pageType, slug])
+  @@index([tenantId])
+  @@map("pages")
+}
+
+// Immutable snapshots — every publish creates a new row.
+// Rollback = update Page.publishedVersionId pointer only. Never mutate tree.
+model PageVersion {
+  id          String    @id @default(cuid())
+  pageId      String    @map("page_id")
+  tenantId    String    @map("tenant_id")
+  tree        String    @db.LongText           // full JSON tree — never mutated
+  treeHash    String?   @map("tree_hash")      // sha256 for dedup
+  publishedBy String?   @map("published_by")
+  publishedAt DateTime? @default(now()) @map("published_at")
+
+  page                Page                 @relation(fields: [pageId], references: [id])
+  experimentVariants  ExperimentVariant[]
+
+  @@index([pageId])
+  @@index([pageId, treeHash])
+  @@map("page_versions")
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
+// tenantId null = global marketplace component
+model Component {
+  id             String    @id @default(cuid())
+  tenantId       String?   @map("tenant_id")
+  name           String
+  description    String?   @db.Text
+  category       String?
+  tags           String?   @db.Text             // JSON string[]
+  schemaJson     String    @db.Text @map("schema_json")
+  currentVersion String    @default("1.0.0") @map("current_version")
+  currentUrl     String?   @map("current_url")
+  origin         String    @default("dev")      // 'dev' | 'ai' | 'marketplace'
+  isPublic       Boolean   @default(false) @map("is_public")
+  aiPrompt       String?   @db.Text @map("ai_prompt")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  versions ComponentVersion[]
+
+  @@index([tenantId])
+  @@map("components")
+}
+
+// Source code always saved — AI needs it for future edits
+model ComponentVersion {
+  id            String   @id @default(cuid())
+  componentId   String   @map("component_id")
+  version       String
+  sourceCode    String   @db.LongText @map("source_code")
+  compiledUrl   String   @map("compiled_url")
+  changeSummary String?  @db.Text @map("change_summary")
+  aiPrompt      String?  @db.Text @map("ai_prompt")
+  isStable      Boolean  @default(false) @map("is_stable")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@index([componentId])
+  @@map("component_versions")
+}
+
+// ── Funnels ───────────────────────────────────────────────────────────────────
+model Funnel {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  name        String
+  goal        String?
+  status      String    @default("draft")  // 'draft' | 'live' | 'archived'
+  aiGenerated Boolean   @default(false) @map("ai_generated")
+  aiPrompt    String?   @db.Text @map("ai_prompt")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  steps FunnelStep[]
+
+  @@index([tenantId])
+  @@map("funnels")
+}
+
+model FunnelStep {
+  id        String  @id @default(cuid())
+  funnelId  String  @map("funnel_id")
+  pageId    String  @map("page_id")
+  stepOrder Int     @map("step_order")
+  stepType  String? @map("step_type")
+  name      String?
+  onSuccess String  @db.Text @map("on_success")  // JSON action
+  onSkip    String? @db.Text @map("on_skip")
+
+  funnel Funnel @relation(fields: [funnelId], references: [id])
+  page   Page   @relation(fields: [pageId], references: [id])
+
+  @@index([funnelId])
+  @@map("funnel_steps")
+}
+
+// ── Experiment Engine ─────────────────────────────────────────────────────────
+model Experiment {
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  pageId              String    @map("page_id")
+  funnelId            String?   @map("funnel_id")
+  name                String
+  hypothesis          String?   @db.Text
+  status              String    @default("draft")
+  primaryMetric       String    @default("conversion_rate") @map("primary_metric")
+  trafficMode         String    @default("sticky") @map("traffic_mode")
+  minSampleSize       Int       @default(500) @map("min_sample_size")
+  analysisWindowDays  Int       @default(7) @map("analysis_window_days")
+  confidenceThreshold Float     @default(0.95) @map("confidence_threshold")
+  winnerVariantId     String?   @map("winner_variant_id")
+  winnerReason        String?   @db.Text @map("winner_reason")
+  startedAt           DateTime? @map("started_at")
+  endedAt             DateTime? @map("ended_at")
+  scheduledEndAt      DateTime? @map("scheduled_end_at")
+  aiGenerated         Boolean   @default(false) @map("ai_generated")
+  aiPrompt            String?   @db.Text @map("ai_prompt")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  page       Page                @relation(fields: [pageId], references: [id])
+  variants   ExperimentVariant[]
+  snapshots  ExperimentSnapshot[]
+  analyses   AiAnalysisResult[]
+
+  @@index([tenantId])
+  @@index([pageId])
+  @@index([tenantId, status])
+  @@map("experiments")
+}
+
+model ExperimentVariant {
+  id              String   @id @default(cuid())
+  experimentId    String   @map("experiment_id")
+  tenantId        String   @map("tenant_id")
+  pageId          String   @map("page_id")
+  name            String
+  description     String?  @db.Text
+  pageVersionId   String   @map("page_version_id")
+  trafficWeight   Float    @default(0.5) @map("traffic_weight")
+  isControl       Boolean  @default(false) @map("is_control")
+  status          String   @default("active")
+  aiGenerated     Boolean  @default(false) @map("ai_generated")
+  aiChangeSummary String?  @db.Text @map("ai_change_summary")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  experiment  Experiment  @relation(fields: [experimentId], references: [id])
+  pageVersion PageVersion @relation(fields: [pageVersionId], references: [id])
+  sessions    VisitorSession[]
+  events      ConversionEvent[]
+  snapshots   ExperimentSnapshot[]
+
+  @@index([experimentId])
+  @@index([tenantId])
+  @@map("experiment_variants")
+}
+
+model VisitorSession {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  experimentId    String    @map("experiment_id")
+  variantId       String    @map("variant_id")
+  visitorId       String    @map("visitor_id")
+  device          String?
+  country         String?
+  referrer        String?
+  utmSource       String?   @map("utm_source")
+  utmMedium       String?   @map("utm_medium")
+  utmCampaign     String?   @map("utm_campaign")
+  landedAt        DateTime  @default(now()) @map("landed_at")
+  convertedAt     DateTime? @map("converted_at")
+  conversionValue Float?    @map("conversion_value")
+
+  variant ExperimentVariant @relation(fields: [variantId], references: [id])
+
+  @@index([experimentId])
+  @@index([variantId])
+  @@index([tenantId, visitorId])
+  @@map("visitor_sessions")
+}
+
+model ConversionEvent {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  experimentId String   @map("experiment_id")
+  variantId    String   @map("variant_id")
+  sessionId    String   @map("session_id")
+  visitorId    String   @map("visitor_id")
+  eventType    String   @map("event_type")
+  elementId    String?  @map("element_id")
+  elementLabel String?  @map("element_label")
+  value        Float?
+  metadata     String?  @db.Text
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+
+  variant ExperimentVariant @relation(fields: [variantId], references: [id])
+
+  @@index([experimentId])
+  @@index([variantId])
+  @@index([experimentId, eventType])
+  @@index([tenantId, occurredAt])
+  @@map("conversion_events")
+}
+
+model ExperimentSnapshot {
+  id                String   @id @default(cuid())
+  experimentId      String   @map("experiment_id")
+  variantId         String   @map("variant_id")
+  tenantId          String   @map("tenant_id")
+  snapshotAt        DateTime @default(now()) @map("snapshot_at")
+  visitors          Int      @default(0)
+  pageViews         Int      @default(0) @map("page_views")
+  ctaClicks         Int      @default(0) @map("cta_clicks")
+  checkoutsStarted  Int      @default(0) @map("checkouts_started")
+  purchases         Int      @default(0)
+  revenue           Float    @default(0)
+  ctaClickRate      Float?   @map("cta_click_rate")
+  conversionRate    Float?   @map("conversion_rate")
+  revenuePerVisitor Float?   @map("revenue_per_visitor")
+  scroll25Rate      Float?   @map("scroll_25_rate")
+  scroll50Rate      Float?   @map("scroll_50_rate")
+  scroll75Rate      Float?   @map("scroll_75_rate")
+  scroll100Rate     Float?   @map("scroll_100_rate")
+  periodStart       DateTime? @map("period_start")
+  periodEnd         DateTime? @map("period_end")
+
+  experiment Experiment        @relation(fields: [experimentId], references: [id])
+  variant    ExperimentVariant @relation(fields: [variantId], references: [id])
+
+  @@index([experimentId])
+  @@index([variantId])
+  @@map("experiment_snapshots")
+}
+
+model AiAnalysisResult {
+  id              String    @id @default(cuid())
+  experimentId    String    @map("experiment_id")
+  tenantId        String    @map("tenant_id")
+  triggeredBy     String    @map("triggered_by")
+  status          String
+  recommendation  String?
+  winnerVariantId String?   @map("winner_variant_id")
+  confidenceScore Float?    @map("confidence_score")
+  reasoning       String?   @db.Text
+  insightsJson    String?   @db.Text @map("insights_json")
+  nextActionJson  String?   @db.Text @map("next_action_json")
+  appliedAt       DateTime? @map("applied_at")
+  approvedBy      String?   @map("approved_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  experiment Experiment @relation(fields: [experimentId], references: [id])
+
+  @@index([experimentId])
+  @@index([tenantId, status])
+  @@map("ai_analysis_results")
+}

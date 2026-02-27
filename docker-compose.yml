@@ -1,0 +1,68 @@
+version: '3.9'
+
+# SeloraX Canvas — 4 app services only
+# MySQL + Redis are on DigitalOcean — no local DB/Redis containers needed
+# SpacetimeDB is on Maincloud — never in Docker
+
+services:
+
+  canvas-backend:
+    build:
+      context: ./apps/canvas-backend
+      dockerfile: Dockerfile
+    container_name: canvas-backend
+    ports: ["3001:3001"]
+    env_file: .env
+    environment:
+      PORT: 3001
+    restart: unless-stopped
+    networks: [selorax-canvas]
+
+  canvas-dashboard:
+    build:
+      context: ./apps/canvas-dashboard
+      dockerfile: Dockerfile
+    container_name: canvas-dashboard
+    ports: ["3002:3000"]
+    env_file: .env
+    environment:
+      BACKEND_URL: http://canvas-backend:3001
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:3001
+      NEXT_PUBLIC_SPACETIMEDB_URL: ${SPACETIMEDB_URL}
+      NEXT_PUBLIC_SPACETIMEDB_DB: ${SPACETIMEDB_DB_NAME}
+    depends_on: [canvas-backend]
+    restart: unless-stopped
+    networks: [selorax-canvas]
+
+  storefront:
+    build:
+      context: ./apps/storefront
+      dockerfile: Dockerfile
+    container_name: canvas-storefront
+    ports: ["3003:3000"]
+    env_file: .env
+    environment:
+      BACKEND_URL: http://canvas-backend:3001
+    depends_on: [canvas-backend]
+    restart: unless-stopped
+    networks: [selorax-canvas]
+
+  preview-server:
+    build:
+      context: ./apps/preview-server
+      dockerfile: Dockerfile
+    container_name: canvas-preview
+    ports: ["3004:3000"]
+    env_file: .env
+    environment:
+      BACKEND_URL: http://canvas-backend:3001
+      SPACETIMEDB_URL: ${SPACETIMEDB_URL}
+      SPACETIMEDB_DB_NAME: ${SPACETIMEDB_DB_NAME}
+      DASHBOARD_URL: http://localhost:3002
+    depends_on: [canvas-backend]
+    restart: unless-stopped
+    networks: [selorax-canvas]
+
+networks:
+  selorax-canvas:
+    name: selorax-canvas

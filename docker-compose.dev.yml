@@ -1,0 +1,39 @@
+version: '3.9'
+
+# Hot reload overrides — use with: make dev
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  canvas-backend:
+    build:
+      target: dev
+    volumes:
+      - ./apps/canvas-backend/src:/app/src
+    command: npx ts-node-dev --respawn --transpile-only src/index.ts
+
+  canvas-dashboard:
+    build:
+      target: dev
+    volumes:
+      - ./apps/canvas-dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev -- -p 3000
+
+  storefront:
+    build:
+      target: dev
+    volumes:
+      - ./apps/storefront:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev -- -p 3000
+
+  preview-server:
+    build:
+      target: dev
+    volumes:
+      - ./apps/preview-server:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev -- -p 3000

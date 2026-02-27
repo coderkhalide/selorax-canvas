@@ -1,0 +1,25 @@
+{
+  "name": "selorax-canvas",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*", "spacetime"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview -c cyan,magenta,yellow,green \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\"",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "stdb:publish": "cd spacetime && spacetime publish --server maincloud selorax-canvas",
+    "stdb:generate": "npm run stdb:generate:backend && npm run stdb:generate:dashboard && npm run stdb:generate:preview",
+    "stdb:generate:backend": "spacetime generate --lang typescript --out-dir apps/canvas-backend/src/module_bindings --module-path ./spacetime",
+    "stdb:generate:dashboard": "spacetime generate --lang typescript --out-dir apps/canvas-dashboard/src/module_bindings --module-path ./spacetime",
+    "stdb:generate:preview": "spacetime generate --lang typescript --out-dir apps/preview-server/src/module_bindings --module-path ./spacetime",
+    "stdb:deploy": "npm run stdb:publish && npm run stdb:generate",
+    "docker:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}
