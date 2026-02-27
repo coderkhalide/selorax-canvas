@@ -1,24 +1,14 @@
 'use client';
-import React from 'react';
-
 interface IconButtonProps {
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  disabled?: boolean;
+  label: string; active?: boolean;
+  onClick?: () => void; children: React.ReactNode;
 }
-
-export default function IconButton({ label, active = false, onClick, children, disabled = false }: IconButtonProps) {
+export default function IconButton({ label, active, onClick, children }: IconButtonProps) {
   return (
     <button
-      className={`icon-btn${active ? ' active' : ''}`}
       title={label}
+      className={`icon-btn${active ? ' active' : ''}`}
       onClick={onClick}
-      disabled={disabled}
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
     >
       {children}
     </button>
