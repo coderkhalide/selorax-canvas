@@ -454,7 +454,7 @@ function CanvasUI({
       onDragEnd={handleDragEnd}
     >
       <div className="canvas-layout">
-        <Toolbar conn={conn} pageId={pageId} tenantId={tenantId} tenantName={tenantName} connected={true} />
+        <Toolbar conn={conn} pageId={pageId} tenantId={tenantId} tenantName={tenantName} connected={conn !== null} />
         <div className="canvas-body">
           <LeftPanel
             flatNodes={[...flatNodes]}

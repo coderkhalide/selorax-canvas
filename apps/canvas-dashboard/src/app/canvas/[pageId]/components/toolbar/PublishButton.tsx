@@ -68,12 +68,11 @@ export default function PublishButton({ pageId, tenantId }: PublishButtonProps) 
 
   return (
     <button
-      className="btn btn-primary"
+      className="publish-btn"
       onClick={handlePublish}
       disabled={publishing}
-      style={{ minWidth: 80 }}
     >
-      {publishing ? '...' : published ? '✓ Published' : 'Publish'}
+      {publishing ? 'Publishing...' : published ? 'Published ✓' : 'Publish'}
     </button>
   );
 }
