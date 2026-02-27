@@ -2,6 +2,14 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useCanvas } from '@/context/CanvasContext';
 import { DropZoneLine } from './DropZoneIndicator';
+import FloatingToolbar from './FloatingToolbar';
+
+function getNodeLabel(node: any): string {
+  try {
+    const p = typeof node.props === 'string' ? JSON.parse(node.props) : (node.props ?? {});
+    return p.label ?? p.tag ?? node.nodeType;
+  } catch { return node.nodeType; }
+}
 
 interface CanvasNodeProps {
   node: any;
@@ -71,6 +79,9 @@ export default function CanvasNode({ node, depth, dropInfo }: CanvasNodeProps) {
         onClick={handleClick}>
         {isDropTarget && dropInfo?.position === 'before' && <DropZoneLine position="before" />}
         {DragHandle}
+        {isSelected && !isDragging && (
+          <FloatingToolbar nodeId={node.id} nodeName={getNodeLabel(node)} />
+        )}
         {node.children?.map((child: any) => (
           <CanvasNode key={child.id} node={child} depth={depth + 1} dropInfo={dropInfo} />
         ))}
@@ -85,6 +96,9 @@ export default function CanvasNode({ node, depth, dropInfo }: CanvasNodeProps) {
         onDoubleClick={handleDoubleClick}>
         {isDropTarget && dropInfo?.position === 'before' && <DropZoneLine position="before" />}
         {DragHandle}
+        {isSelected && !isDragging && (
+          <FloatingToolbar nodeId={node.id} nodeName={getNodeLabel(node)} />
+        )}
         <RenderElement node={node} isEditing={isEditing}
           onBlur={(content) => { updateProps(node.id, { content }); setEditingId(null); }} />
         {isDropTarget && dropInfo?.position === 'after' && <DropZoneLine position="after" />}
@@ -99,7 +113,10 @@ export default function CanvasNode({ node, depth, dropInfo }: CanvasNodeProps) {
         data-node-id={node.id} onClick={handleClick}>
         {isDropTarget && dropInfo?.position === 'before' && <DropZoneLine position="before" />}
         {DragHandle}
-        <span style={{ fontSize: 11, color: '#6B7280' }}>📦 {node.componentId ?? 'Component'}</span>
+        {isSelected && !isDragging && (
+          <FloatingToolbar nodeId={node.id} nodeName={getNodeLabel(node)} />
+        )}
+        <span style={{ fontSize: 11, color: '#6B7280' }}>&#128230; {node.componentId ?? 'Component'}</span>
         {isDropTarget && dropInfo?.position === 'after' && <DropZoneLine position="after" />}
       </div>
     );

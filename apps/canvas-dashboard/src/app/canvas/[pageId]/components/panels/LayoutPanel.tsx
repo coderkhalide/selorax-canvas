@@ -1,13 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useSpacetimeDB } from 'spacetimedb/react';
-import { DbConnection } from '@/module_bindings';
+import { useCanvas } from '@/context/CanvasContext';
 import IconButton from '../ui/IconButton';
 
 interface LayoutPanelProps {
   nodeId: string;
   styles: Record<string, string>;
-  tenantId: string;
 }
 
 type DisplayMode = 'block' | 'flex' | 'grid' | 'none';
@@ -38,9 +36,9 @@ const JUSTIFY_CONTENT_OPTIONS: { value: JustifyContent; label: string; icon: str
   { value: 'space-around', label: 'Around', icon: '⤚↔⤙' },
 ];
 
-export default function LayoutPanel({ nodeId, styles, tenantId: _tenantId }: LayoutPanelProps) {
-  const stdb = useSpacetimeDB() as any;
-  const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
+export default function LayoutPanel({ nodeId, styles }: LayoutPanelProps) {
+  const { updateStyles } = useCanvas();
+  const update = (patch: Record<string, string>) => updateStyles(nodeId, patch);
 
   const display = (styles.display ?? 'block') as DisplayMode;
   const flexDirection = (styles.flexDirection ?? 'row') as FlexDirection;
@@ -65,15 +63,6 @@ export default function LayoutPanel({ nodeId, styles, tenantId: _tenantId }: Lay
 
   const [gridColumnsValue, setGridColumnsValue] = useState(String(gridColumns));
   useEffect(() => { setGridColumnsValue(String(gridColumns)); }, [gridColumns]);
-
-  // Send only the patch — the server-side reducer deep-merges styles itself
-  const update = (patch: Record<string, string>) => {
-    if (!conn) return;
-    conn.reducers.updateNodeStyles({
-      nodeId,
-      styles: JSON.stringify(patch),
-    });
-  };
 
   const handleDisplayChange = (value: DisplayMode) => {
     update({ display: value });

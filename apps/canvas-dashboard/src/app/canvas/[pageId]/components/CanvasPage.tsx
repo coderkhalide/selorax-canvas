@@ -488,7 +488,7 @@ function CanvasUI({
               tenantId={tenantId} selectedNodeId={lastSelectedId}
             />
           </div>
-          <RightPanel node={selectedNode} conn={conn} tenantId={tenantId} pageId={pageId} isPublished={isPublished} />
+          <RightPanel pageId={pageId} tenantId={tenantId} isPublished={isPublished} />
         </div>
       </div>
       {/* Drag preview overlay */}
