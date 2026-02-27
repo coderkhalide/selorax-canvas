@@ -1,6 +1,6 @@
 import { createTool }    from '@mastra/core/tools';
 import { z }             from 'zod';
-import { callReducer }   from '../../spacetime/client';
+import { callReducer, opt } from '../../spacetime/client';
 
 export const insertNodeTool = createTool({
   id: 'insert_node',
@@ -25,16 +25,16 @@ export const insertNodeTool = createTool({
       id,
       page_id:           context.page_id,
       tenant_id:         context.tenant_id,
-      parent_id:         context.parent_id,
+      parent_id:         opt(context.parent_id),
       order:             resolveOrder(context.position),
       node_type:         context.node_type,
       styles:            JSON.stringify(context.styles    ?? {}),
       props:             JSON.stringify(context.props     ?? {}),
       settings:          JSON.stringify(context.settings  ?? {}),
       children_ids:      '[]',
-      component_id:      context.component_id      ?? null,
-      component_url:     context.component_url     ?? null,
-      component_version: context.component_version ?? null,
+      component_id:      opt(context.component_id),
+      component_url:     opt(context.component_url),
+      component_version: opt(context.component_version),
     });
     return { node_id: id, message: 'Node inserted — visible on canvas now' };
   },

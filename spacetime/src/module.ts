@@ -12,23 +12,24 @@ const canvas_node = table(
   {
     name: 'canvas_node',
     public: true,
+    // Multi-column index must have an accessor name to avoid SDK collision bug.
+    // Single-column indexes use per-column .index() below.
     indexes: [
-      { name: 'idx_node_page',        algorithm: 'btree', columns: ['page_id'] },
-      { name: 'idx_node_parent',      algorithm: 'btree', columns: ['parent_id'] },
-      { name: 'idx_node_page_tenant', algorithm: 'btree', columns: ['page_id', 'tenant_id'] },
+      { accessor: 'pageTenant',  algorithm: 'btree', columns: ['page_id', 'tenant_id'] },
+      { accessor: 'parentIndex', algorithm: 'btree', columns: ['parent_id'] },
     ],
   },
   {
     id:                t.string().primaryKey(),
-    page_id:           t.string(),
-    tenant_id:         t.string(),        // isolation key — always present
-    node_type:         t.string(),        // 'layout' | 'element' | 'component' | 'slot'
-    parent_id:         t.string().optional(),
-    order:             t.string(),        // fractional index e.g. "a0", "a1", "a0V"
-    styles:            t.string(),        // JSON — ResponsiveStyles
-    props:             t.string(),        // JSON — ElementProps
-    settings:          t.string(),        // JSON — ComponentSettings
-    children_ids:      t.string(),        // JSON — string[]
+    page_id:           t.string().index(),   // single-column btree index
+    tenant_id:         t.string(),           // isolation key — always present
+    node_type:         t.string(),           // 'layout' | 'element' | 'component' | 'slot'
+    parent_id:         t.string().optional(), // indexed via indexes array above
+    order:             t.string(),           // fractional index e.g. "a0", "a1", "a0V"
+    styles:            t.string(),           // JSON — ResponsiveStyles
+    props:             t.string(),           // JSON — ElementProps
+    settings:          t.string(),           // JSON — ComponentSettings
+    children_ids:      t.string(),           // JSON — string[]
     component_url:     t.string().optional(),
     component_id:      t.string().optional(),
     component_version: t.string().optional(),
@@ -45,15 +46,11 @@ const active_cursor = table(
   {
     name: 'active_cursor',
     public: true,
-    indexes: [
-      { name: 'idx_cursor_page',   algorithm: 'btree', columns: ['page_id'] },
-      { name: 'idx_cursor_tenant', algorithm: 'btree', columns: ['tenant_id'] },
-    ],
   },
   {
     user_id:          t.string().primaryKey(),
-    page_id:          t.string(),
-    tenant_id:        t.string(),
+    page_id:          t.string().index(),
+    tenant_id:        t.string().index(),
     x:                t.f32(),
     y:                t.f32(),
     selected_node_id: t.string().optional(),
@@ -72,15 +69,11 @@ const ai_operation = table(
   {
     name: 'ai_operation',
     public: true,
-    indexes: [
-      { name: 'idx_aiop_page',   algorithm: 'btree', columns: ['page_id'] },
-      { name: 'idx_aiop_tenant', algorithm: 'btree', columns: ['tenant_id'] },
-    ],
   },
   {
     id:              t.string().primaryKey(),
-    page_id:         t.string(),
-    tenant_id:       t.string(),
+    page_id:         t.string().index(),
+    tenant_id:       t.string().index(),
     status:          t.string(),    // 'thinking'|'planning'|'building'|'applying'|'done'|'error'
     prompt:          t.string(),
     current_action:  t.string(),    // live status text shown on canvas
@@ -100,15 +93,11 @@ const component_build = table(
   {
     name: 'component_build',
     public: true,
-    indexes: [
-      { name: 'idx_build_op',     algorithm: 'btree', columns: ['operation_id'] },
-      { name: 'idx_build_tenant', algorithm: 'btree', columns: ['tenant_id'] },
-    ],
   },
   {
     id:            t.string().primaryKey(),
-    tenant_id:     t.string(),
-    operation_id:  t.string(),
+    tenant_id:     t.string().index(),
+    operation_id:  t.string().index(),
     status:        t.string(),      // 'generating'|'compiling'|'uploading'|'ready'|'error'
     description:   t.string(),
     progress:      t.u8(),
@@ -140,7 +129,7 @@ export const insert_node = spacetimedb.reducer({
     ...args,
     locked_by: null, locked_at: null,
     updated_by: ctx.sender.toHexString(),
-    updated_at: BigInt(Date.now()),
+    updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -152,7 +141,7 @@ export const update_node_styles = spacetimedb.reducer({
   const merged = { ...JSON.parse(node.styles || '{}'), ...JSON.parse(styles) };
   ctx.db.canvas_node.id.update({
     ...node, styles: JSON.stringify(merged),
-    updated_by: ctx.sender.toHexString(), updated_at: BigInt(Date.now()),
+    updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -164,7 +153,7 @@ export const update_node_props = spacetimedb.reducer({
   const merged = { ...JSON.parse(node.props || '{}'), ...JSON.parse(props) };
   ctx.db.canvas_node.id.update({
     ...node, props: JSON.stringify(merged),
-    updated_by: ctx.sender.toHexString(), updated_at: BigInt(Date.now()),
+    updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -176,7 +165,7 @@ export const update_node_settings = spacetimedb.reducer({
   const merged = { ...JSON.parse(node.settings || '{}'), ...JSON.parse(settings) };
   ctx.db.canvas_node.id.update({
     ...node, settings: JSON.stringify(merged),
-    updated_by: ctx.sender.toHexString(), updated_at: BigInt(Date.now()),
+    updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -187,7 +176,7 @@ export const move_node = spacetimedb.reducer({
   if (!node) return;
   ctx.db.canvas_node.id.update({
     ...node, parent_id: new_parent_id, order: new_order,
-    updated_by: ctx.sender.toHexString(), updated_at: BigInt(Date.now()),
+    updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -199,7 +188,7 @@ export const delete_node_cascade = spacetimedb.reducer({
       if (child.parent_id === id) cascade(child.id);
     }
     const node = ctx.db.canvas_node.id.find(id);
-    if (node) ctx.db.canvas_node.id.delete(node);
+    if (node) ctx.db.canvas_node.delete(node);
   }
   cascade(node_id);
 });
@@ -212,8 +201,8 @@ export const lock_node = spacetimedb.reducer({
   const caller = ctx.sender.toHexString();
   if (node.locked_by && node.locked_by !== caller) return;
   ctx.db.canvas_node.id.update({
-    ...node, locked_by: caller, locked_at: BigInt(Date.now()),
-    updated_by: caller, updated_at: BigInt(Date.now()),
+    ...node, locked_by: caller, locked_at: ctx.timestamp.microsSinceUnixEpoch,
+    updated_by: caller, updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -225,7 +214,7 @@ export const unlock_node = spacetimedb.reducer({
   if (node.locked_by !== ctx.sender.toHexString()) return;
   ctx.db.canvas_node.id.update({
     ...node, locked_by: null, locked_at: null,
-    updated_by: ctx.sender.toHexString(), updated_at: BigInt(Date.now()),
+    updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
 
@@ -238,7 +227,7 @@ export const upsert_cursor = spacetimedb.reducer({
 }, (ctx, args) => {
   const user_id  = ctx.sender.toHexString();
   const existing = ctx.db.active_cursor.user_id.find(user_id);
-  const now      = BigInt(Date.now());
+  const now      = ctx.timestamp.microsSinceUnixEpoch;
   if (existing) {
     ctx.db.active_cursor.user_id.update({ ...existing, ...args, user_id, last_seen: now });
   } else {
@@ -252,12 +241,12 @@ export const move_cursor = spacetimedb.reducer({
 }, (ctx, args) => {
   const cursor = ctx.db.active_cursor.user_id.find(ctx.sender.toHexString());
   if (!cursor) return;
-  ctx.db.active_cursor.user_id.update({ ...cursor, ...args, last_seen: BigInt(Date.now()) });
+  ctx.db.active_cursor.user_id.update({ ...cursor, ...args, last_seen: ctx.timestamp.microsSinceUnixEpoch });
 });
 
 export const remove_cursor = spacetimedb.reducer({}, ctx => {
   const cursor = ctx.db.active_cursor.user_id.find(ctx.sender.toHexString());
-  if (cursor) ctx.db.active_cursor.user_id.delete(cursor);
+  if (cursor) ctx.db.active_cursor.delete(cursor);
 });
 
 export const create_ai_operation = spacetimedb.reducer({
@@ -267,7 +256,7 @@ export const create_ai_operation = spacetimedb.reducer({
     ...args, status: 'thinking', current_action: 'Understanding your request...',
     progress: 0, plan: null,
     nodes_created: '[]', nodes_modified: '[]', nodes_deleted: '[]',
-    error_message: null, started_at: BigInt(Date.now()), completed_at: null,
+    error_message: null, started_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: null,
   });
 });
 
@@ -279,7 +268,7 @@ export const update_ai_operation = spacetimedb.reducer({
   const isDone = status === 'done' || status === 'error';
   ctx.db.ai_operation.id.update({
     ...op, status, current_action, progress,
-    completed_at: isDone ? BigInt(Date.now()) : op.completed_at,
+    completed_at: isDone ? ctx.timestamp.microsSinceUnixEpoch : op.completed_at,
   });
 });
 
@@ -289,7 +278,7 @@ export const create_component_build = spacetimedb.reducer({
   ctx.db.component_build.insert({
     ...args, status: 'generating', progress: 0,
     preview_code: null, compiled_url: null, component_id: null,
-    created_at: BigInt(Date.now()), completed_at: null,
+    created_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: null,
   });
 });
 
@@ -314,6 +303,6 @@ export const update_component_build = spacetimedb.reducer({
     ...build, status, progress,
     compiled_url: compiled_url ?? build.compiled_url,
     component_id: component_id ?? build.component_id,
-    completed_at: isDone ? BigInt(Date.now()) : build.completed_at,
+    completed_at: isDone ? ctx.timestamp.microsSinceUnixEpoch : build.completed_at,
   });
 });

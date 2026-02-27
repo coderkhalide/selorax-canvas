@@ -83,12 +83,14 @@ router.patch('/:id/start', async (req, res) => {
       data: { status: 'running', startedAt: new Date() },
     });
 
-    // Cache experiment config in Redis for fast serving
+    // Cache experiment config in Redis for fast serving (skip if unavailable)
     const cacheKey = `exp:page:${tenant.id}:${experiment.pageId}`;
-    await redis.set(cacheKey, JSON.stringify({
-      experimentId: experiment.id,
-      variants: experiment.variants,
-    }), 'EX', 86400 * 30); // 30 days
+    if (redis && redis.status === 'ready') {
+      await redis.set(cacheKey, JSON.stringify({
+        experimentId: experiment.id,
+        variants: experiment.variants,
+      }), 'EX', 86400 * 30).catch(() => {}); // 30 days
+    }
 
     res.json(updated);
   } catch (err: any) {
@@ -110,9 +112,11 @@ router.patch('/:id/stop', async (req, res) => {
       data: { status: 'paused', endedAt: new Date() },
     });
 
-    // Remove from Redis serve cache
+    // Remove from Redis serve cache (skip if unavailable)
     const cacheKey = `exp:page:${tenant.id}:${experiment.pageId}`;
-    await redis.del(cacheKey);
+    if (redis && redis.status === 'ready') {
+      await redis.del(cacheKey).catch(() => {});
+    }
 
     res.json(updated);
   } catch (err: any) {

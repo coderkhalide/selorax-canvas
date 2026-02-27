@@ -4,6 +4,7 @@
   "workspaces": ["apps/*", "packages/*", "spacetime"],
   "scripts": {
     "dev": "turbo run dev",
+    "test:e2e": "tsx scripts/test-e2e.ts",
     "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview -c cyan,magenta,yellow,green \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -19,6 +20,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
+    "dotenv": "^16.0.0",
+    "tsx": "^4.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
   }

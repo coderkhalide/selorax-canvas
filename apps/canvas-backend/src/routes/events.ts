@@ -14,7 +14,9 @@ router.post('/', async (req, res) => {
     const events = Array.isArray(req.body) ? req.body : [req.body];
     if (!events.length) return;
 
-    // Push events to Redis queue for async processing
+    // Push events to Redis queue for async processing (skip if Redis unavailable)
+    if (!redis || redis.status !== 'ready') return;
+
     const pipeline = redis.pipeline();
     for (const event of events) {
       pipeline.rpush('events:queue', JSON.stringify({

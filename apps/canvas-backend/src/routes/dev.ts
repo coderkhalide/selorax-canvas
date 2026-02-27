@@ -4,7 +4,7 @@
 import { Router }      from 'express';
 import { prisma }      from '../db';
 import { redis }       from '../redis/client';
-import { callReducer, getPageNodes } from '../spacetime/client';
+import { callReducer, getPageNodes, opt } from '../spacetime/client';
 import { getTenant }   from '../middleware/tenant';
 import { publishPage } from '../publish';
 
@@ -45,7 +45,7 @@ router.post('/seed', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: heroId, page_id: pageId, tenant_id: tenantId, parent_id: rootId,
+        id: heroId, page_id: pageId, tenant_id: tenantId, parent_id: opt(rootId),
         order: 'a0', node_type: 'layout',
         styles: JSON.stringify({
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -58,7 +58,7 @@ router.post('/seed', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: headingId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: headingId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a0', node_type: 'element',
         styles: JSON.stringify({ fontSize: '48px', fontWeight: '700', marginBottom: '16px', color: '#fff' }),
         props: JSON.stringify({ tag: 'heading', level: 1, content: 'Welcome to {{store.name}}' }),
@@ -66,7 +66,7 @@ router.post('/seed', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: textId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: textId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a1', node_type: 'element',
         styles: JSON.stringify({ fontSize: '18px', maxWidth: '600px', marginBottom: '32px', opacity: '0.9' }),
         props: JSON.stringify({ tag: 'text', content: 'Build stunning pages with AI-powered tools.' }),
@@ -74,7 +74,7 @@ router.post('/seed', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: buttonId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: buttonId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a2', node_type: 'element',
         styles: JSON.stringify({
           display: 'inline-block', padding: '16px 40px', background: '#fff',
@@ -137,7 +137,7 @@ router.post('/seed-and-publish', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: heroId, page_id: pageId, tenant_id: tenantId, parent_id: rootId,
+        id: heroId, page_id: pageId, tenant_id: tenantId, parent_id: opt(rootId),
         order: 'a0', node_type: 'layout',
         styles: JSON.stringify({
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -149,7 +149,7 @@ router.post('/seed-and-publish', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: headingId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: headingId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a0', node_type: 'element',
         styles: JSON.stringify({ fontSize: '56px', fontWeight: '800', margin: '0 0 16px', lineHeight: '1.1' }),
         props: JSON.stringify({ tag: 'heading', level: 1, content: 'Welcome to {{store.name}}' }),
@@ -157,7 +157,7 @@ router.post('/seed-and-publish', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: textId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: textId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a1', node_type: 'element',
         styles: JSON.stringify({ fontSize: '20px', maxWidth: '600px', margin: '0 0 40px', opacity: '0.85', lineHeight: '1.6' }),
         props: JSON.stringify({ tag: 'text', content: 'AI-powered page builder. Design, test, and ship stunning pages in minutes.' }),
@@ -165,7 +165,7 @@ router.post('/seed-and-publish', async (req, res) => {
         component_id: null, component_url: null, component_version: null,
       },
       {
-        id: btnId, page_id: pageId, tenant_id: tenantId, parent_id: heroId,
+        id: btnId, page_id: pageId, tenant_id: tenantId, parent_id: opt(heroId),
         order: 'a2', node_type: 'element',
         styles: JSON.stringify({
           display: 'inline-block', padding: '18px 48px', background: '#fff',
