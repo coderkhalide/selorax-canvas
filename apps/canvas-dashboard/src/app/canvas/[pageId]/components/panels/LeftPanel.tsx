@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useCanvas } from '@/context/CanvasContext';
 import LayersTree       from './LayersTree';
 import ElementsPanel    from './ElementsPanel';
 import ComponentBrowser from './ComponentBrowser';
@@ -12,7 +11,6 @@ export default function LeftPanel({ pageId, tenantId, conn }: {
   pageId: string; tenantId: string; conn: any;
 }) {
   const [tab, setTab] = useState<Tab>('elements');
-  const { flatNodes, selectedIds, selectNode } = useCanvas();
 
   return (
     <div className="panel-left">
@@ -25,7 +23,7 @@ export default function LeftPanel({ pageId, tenantId, conn }: {
       </div>
       <div className="panel-tab-body">
         {tab === 'elements'    && <ElementsPanel pageId={pageId} tenantId={tenantId} />}
-        {tab === 'layers'      && <LayersTree flatNodes={flatNodes} selectedIds={selectedIds} onSelect={selectNode} />}
+        {tab === 'layers'      && <LayersTree />}
         {tab === 'components'  && <ComponentBrowser tenantId={tenantId} pageId={pageId} conn={conn} />}
         {tab === 'funnels'     && (
           <FunnelBuilder

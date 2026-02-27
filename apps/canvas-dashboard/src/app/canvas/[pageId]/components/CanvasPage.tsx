@@ -30,7 +30,7 @@ function CanvasUI({
   aiOps: any[];
   conn: DbConnection;
 }) {
-  const { flatNodes, nodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId, moveNode } = useCanvas();
+  const { flatNodes, nodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId, moveNode, duplicateSelected, deleteNode } = useCanvas();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; targetId: string | null } | null>(null);
   const [isPublished, setIsPublished] = useState(false);
@@ -47,6 +47,29 @@ function CanvasUI({
       })
       .catch(() => {});
   }, [pageId, tenantId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't fire if typing in an input or contentEditable
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+        e.preventDefault();
+        duplicateSelected();
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        [...selectedIds].forEach(id => deleteNode(id));
+      }
+      if (e.key === 'Escape') {
+        selectNode(null);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [duplicateSelected, deleteNode, selectedIds, selectNode]);
 
   // ── DnD handlers ────────────────────────────────────────────────────────────
 
