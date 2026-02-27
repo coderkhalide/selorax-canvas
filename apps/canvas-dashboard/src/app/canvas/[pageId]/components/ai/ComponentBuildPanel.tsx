@@ -8,9 +8,9 @@ interface ComponentBuildPanelProps {
 }
 
 export default function ComponentBuildPanel({ tenantId, operationId }: ComponentBuildPanelProps) {
-  const [builds] = useTable(tables.component_build.where(r =>
-    r.tenant_id.eq(tenantId).and(r.operation_id.eq(operationId))
-  ));
+  // useTable reads from the local cache (subscription is already filtered by tenant_id)
+  const [allBuilds] = useTable(tables.component_build);
+  const builds = allBuilds.filter(b => b.tenantId === tenantId && b.operationId === operationId);
 
   if (!builds.length) return null;
 
@@ -33,19 +33,19 @@ export default function ComponentBuildPanel({ tenantId, operationId }: Component
             <span style={{ fontSize: 11, color: '#6B7280' }}>{build.description}</span>
             <span style={{ fontSize: 11, color: '#7C3AED' }}>{build.progress}%</span>
           </div>
-          {build.preview_code && (
+          {build.previewCode && (
             <pre style={{
               fontSize: 10, color: '#9CA3AF', overflow: 'auto',
               maxHeight: 200, background: '#0a0c14', padding: 8,
               borderRadius: 4, border: '1px solid #1e2030',
               fontFamily: 'monospace',
             }}>
-              {build.preview_code}
+              {build.previewCode}
             </pre>
           )}
-          {build.status === 'ready' && build.compiled_url && (
+          {build.status === 'ready' && build.compiledUrl && (
             <p style={{ fontSize: 11, color: '#059669', marginTop: 6 }}>
-              ✓ Ready: {build.compiled_url}
+              ✓ Ready: {build.compiledUrl}
             </p>
           )}
         </div>

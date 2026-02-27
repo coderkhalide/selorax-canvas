@@ -12,11 +12,12 @@ export const moveNodeTool = createTool({
     new_order:    z.string().describe('New order string (fractional index)'),
   }),
   outputSchema: z.object({ message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     await callReducer('move_node', {
-      node_id:      context.node_id,
+      node_id:       context.node_id,
+      tenant_id:     context.tenant_id,
       new_parent_id: context.new_parent_id,
-      new_order:    context.new_order,
+      new_order:     context.new_order,
     });
     return { message: `Node ${context.node_id} moved` };
   },

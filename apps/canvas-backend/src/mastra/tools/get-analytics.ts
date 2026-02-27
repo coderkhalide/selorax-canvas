@@ -11,7 +11,7 @@ export const getAnalyticsTool = createTool({
     days:      z.number().optional().default(7).describe('Look-back window in days'),
   }),
   outputSchema: z.object({ experiments: z.array(z.any()), summary: z.any() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const since = new Date(Date.now() - (context.days ?? 7) * 86400_000);
 
     const experiments = await prisma.experiment.findMany({

@@ -41,11 +41,37 @@ router.get('/:tenantId/:pageType/:slug', async (req, res) => {
     });
     if (!version) return res.status(404).json({ error: 'Version not found' });
 
+    // Resolve funnel context
+    let funnelContext = null;
+    const funnelStep = await prisma.funnelStep.findFirst({
+      where: { pageId: page.id },
+    });
+    if (funnelStep) {
+      const nextStep = await prisma.funnelStep.findFirst({
+        where: { funnelId: funnelStep.funnelId, stepOrder: funnelStep.stepOrder + 1 },
+        include: { page: { select: { slug: true, pageType: true } } },
+      });
+      let parsedOnSuccess = null;
+      try { parsedOnSuccess = funnelStep.onSuccess ? JSON.parse(funnelStep.onSuccess) : null; } catch { /* invalid JSON → treat as null */ }
+      let parsedOnSkip = null;
+      try { parsedOnSkip = funnelStep.onSkip ? JSON.parse(funnelStep.onSkip) : null; } catch { /* invalid JSON → treat as null */ }
+      funnelContext = {
+        funnelId:        funnelStep.funnelId,
+        funnelStepOrder: funnelStep.stepOrder,
+        nextStepUrl:     nextStep ? `/${nextStep.page.slug}` : null,
+        isLastStep:      !nextStep,
+        onSuccess:       parsedOnSuccess,
+        onSkip:          parsedOnSkip,
+      };
+    }
+
     const payload = {
       tree: JSON.parse(version.tree),
       versionId: version.id,
       pageId: page.id,
       tenantId,
+      funnelContext,
+      experimentContext: null,
     };
 
     // 3. Populate cache if Redis available
@@ -55,6 +81,36 @@ router.get('/:tenantId/:pageType/:slug', async (req, res) => {
 
     res.setHeader('X-Cache', 'MISS');
     res.json(payload);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/serve/:tenantId/funnel-nav/:pageId
+// Preview-server calls this to resolve next funnel step for in-editor navigation.
+// Public — no tenant middleware. Returns only funnel nav data, no tree.
+router.get('/:tenantId/funnel-nav/:pageId', async (req, res) => {
+  const { tenantId, pageId } = req.params;
+  try {
+    const funnelStep = await prisma.funnelStep.findFirst({
+      where: { pageId, page: { tenantId } },
+    });
+    if (!funnelStep) return res.json({ funnelContext: null });
+
+    const nextStep = await prisma.funnelStep.findFirst({
+      where: { funnelId: funnelStep.funnelId, stepOrder: funnelStep.stepOrder + 1 },
+      select: { pageId: true, page: { select: { slug: true } } },
+    });
+
+    res.json({
+      funnelContext: {
+        funnelId:        funnelStep.funnelId,
+        funnelStepOrder: funnelStep.stepOrder,
+        nextStepPageId:  nextStep?.pageId  ?? null,
+        nextStepUrl:     nextStep ? `/${nextStep.page.slug}` : null,
+        isLastStep:      !nextStep,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

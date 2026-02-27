@@ -18,9 +18,49 @@ The canvas editor connects directly to SpacetimeDB Maincloud from the browser. A
 ```
 
 ## NEVER Use subscribeToAllTables()
-Always filter by both `page_id` AND `tenant_id`:
+Always filter by both `page_id` AND `tenant_id`. Use RAW SQL strings (NOT query builder `.where()` — DB columns are snake_case but query builder uses camelCase and generates wrong SQL):
 ```typescript
-tables.canvas_node.where(r => r.page_id.eq(pageId).and(r.tenant_id.eq(tenantId)))
+// CORRECT — raw SQL with snake_case DB column names:
+conn.subscriptionBuilder().subscribe([
+  `SELECT * FROM canvas_node WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
+  `SELECT * FROM active_cursor WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
+]);
+
+// WRONG — query builder generates wrong SQL ('pageId' not 'page_id'):
+// tables.canvas_node.where(r => r.page_id.eq(pageId)) — r.page_id is undefined
+// tables.canvas_node.where(r => r.pageId.eq(pageId))  — generates pageId in SQL (not page_id)
+```
+
+## useTable — Read From Local Cache
+Since the subscription already filters rows, `useTable` can use unfiltered table refs:
+```typescript
+const [flatNodes] = useTable(tables.canvas_node);   // only subscribed rows in cache
+const [cursors]   = useTable(tables.active_cursor);
+const [aiOps]     = useTable(tables.ai_operation);
+```
+`useTable` returns `readonly[]` — spread when passing to mutable args: `[...flatNodes]`
+
+## Generated Row Fields Are camelCase
+The SpacetimeDB SDK generates camelCase JS property names from snake_case DB columns:
+- `row.pageId` (not `row.page_id`)
+- `row.tenantId` (not `row.tenant_id`)
+- `row.nodeType` (not `row.node_type`)
+- `row.parentId` (not `row.parent_id`)
+- `row.componentUrl` (not `row.component_url`)
+- `row.lockedBy`, `row.lockedAt`
+
+## Reducer Names Are camelCase
+```typescript
+conn.reducers.moveCursor({ x, y, selectedNodeId, hoveredNodeId })
+conn.reducers.lockNode({ nodeId })
+conn.reducers.unlockNode({ nodeId })
+conn.reducers.updateNodeStyles({ nodeId, styles })
+conn.reducers.insertNode({ id, pageId, tenantId, ... })
+```
+
+## useSpacetimeDB Cast
+```typescript
+const conn = useSpacetimeDB() as unknown as DbConnection | null;
 ```
 
 ## SpacetimeDB React Pattern

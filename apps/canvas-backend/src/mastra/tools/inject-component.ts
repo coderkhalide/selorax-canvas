@@ -18,7 +18,7 @@ export const injectComponentTool = createTool({
     styles:            z.record(z.any()).optional(),
   }),
   outputSchema: z.object({ node_id: z.string(), message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const id = crypto.randomUUID();
     const order = context.position === 'first' ? 'a0'
       : context.position === 'last' ? `z${Date.now().toString(36)}`

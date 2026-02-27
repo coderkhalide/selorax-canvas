@@ -5,9 +5,27 @@ import { memo, useState, useEffect } from 'react';
 
 const MODULE_CACHE = new Map<string, React.ComponentType<any>>();
 
-export function PageRenderer({ tree, data }: { tree: any; data: any }) {
+export interface FunnelContext {
+  nextStepUrl: string | null;
+  funnelId: string;
+  funnelStepOrder: number;
+  isLastStep: boolean;
+  onSuccess: (() => void) | null;
+  onSkip: (() => void) | null;
+}
+
+export interface PageRendererProps {
+  tree: any;
+  data: any;
+  funnelContext?: FunnelContext | null;
+  onEvent?: (event: { eventType: string; value?: number; funnelId?: string; funnelStepOrder?: number }) => void;
+  onFunnelNext?: () => void;
+}
+
+export function PageRenderer({ tree, data, funnelContext, onEvent, onFunnelNext }: PageRendererProps) {
   if (!tree) return null;
-  return <RenderNode node={tree} data={data} />;
+  const enrichedData = { ...data, _funnelContext: funnelContext, _onEvent: onEvent, _onFunnelNext: onFunnelNext };
+  return <RenderNode node={tree} data={enrichedData} />;
 }
 
 const RenderNode = memo(function RenderNode({ node, data }: any) {
@@ -44,12 +62,15 @@ function RenderElement({ node, styles, data }: any) {
   switch (props.tag) {
     case 'text':    return <p style={styles}>{text(props.content)}</p>;
     case 'heading': {
-      const Tag = (props.level ?? 'h2') as keyof JSX.IntrinsicElements;
+      const Tag = `h${props.level ?? 2}` as keyof JSX.IntrinsicElements;
       return <Tag style={styles}>{text(props.content)}</Tag>;
     }
     case 'image':   return <img src={props.src} alt={props.alt ?? ''} style={styles} />;
     case 'button':  return (
-      <button style={styles} onClick={() => handleAction(props.action)}>
+      <button
+        style={styles}
+        onClick={() => handleAction(props.action, data?._funnelContext, data?._onEvent, data?._onFunnelNext)}
+      >
         {text(props.label)}
       </button>
     );
@@ -78,7 +99,7 @@ function RenderComponent({ node, styles, data }: any) {
   return <div style={styles}><Comp settings={node.settings ?? {}} data={data} /></div>;
 }
 
-function resolveStyles(styles: any, device?: string): React.CSSProperties {
+export function resolveStyles(styles: any, device?: string): React.CSSProperties {
   if (!styles) return {};
   const { _sm, _md, _lg, _hover, _active, _focus, ...base } = styles;
   if (device === 'mobile' && _sm) Object.assign(base, _sm);
@@ -86,14 +107,40 @@ function resolveStyles(styles: any, device?: string): React.CSSProperties {
   return base;
 }
 
-function resolveTokens(value: string, data: any): string {
-  if (!value || typeof value !== 'string') return value;
+export function resolveTokens(value: string, data: any): string {
+  if (!value || typeof value !== 'string') return '';
   return value.replace(/\{\{([^}]+)\}\}/g, (_, path) =>
     path.trim().split('.').reduce((o: any, k: string) => o?.[k], data) ?? ''
   );
 }
 
-function handleAction(action: any) {
+function handleAction(
+  action: any,
+  funnelContext?: FunnelContext | null,
+  onEvent?: (e: any) => void,
+  onFunnelNext?: () => void,
+) {
   if (!action) return;
-  if (action.type === 'link' && action.url) window.location.href = action.url;
+
+  if (action.type === 'link' && action.url) {
+    window.location.href = action.url;
+    return;
+  }
+
+  if (action.type === 'nextFunnelStep') {
+    if (!funnelContext) return;  // no context = nothing to advance
+    onEvent?.({
+      eventType: 'funnel_step_complete',
+      funnelId: funnelContext.funnelId,
+      funnelStepOrder: funnelContext.funnelStepOrder,
+    });
+    onFunnelNext?.();
+    return;
+  }
+
+  if (action.type === 'conversion') {
+    onEvent?.({ eventType: 'conversion', value: action.value ?? 0 });
+    if (action.url) window.location.href = action.url;
+    return;
+  }
 }

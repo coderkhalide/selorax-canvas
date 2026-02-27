@@ -17,10 +17,12 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.0",
+    "@aws-sdk/client-s3": "^3.999.0",
     "@mastra/core": "^1.8.0",
     "@mastra/mcp": "^1.0.2",
     "@prisma/client": "^5.0.0",
     "@selorax/types": "*",
+    "busboy": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.19.0",
@@ -29,6 +31,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",

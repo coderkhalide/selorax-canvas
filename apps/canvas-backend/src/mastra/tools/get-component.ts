@@ -10,7 +10,7 @@ export const getComponentTool = createTool({
     component_id: z.string(),
   }),
   outputSchema: z.object({ component: z.any().nullable() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const component = await prisma.component.findFirst({
       where: {
         id: context.component_id,

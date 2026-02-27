@@ -1,5 +1,6 @@
 'use client';
 import PublishButton from './PublishButton';
+import ExportButton from './ExportButton';
 
 interface ToolbarProps {
   conn: any;
@@ -17,6 +18,7 @@ export default function Toolbar({ conn, pageId, tenantId, tenantName, connected 
         <div className={`connection-dot ${connected ? '' : 'disconnected'}`} />
         <span>{connected ? 'Live' : 'Disconnected'}</span>
       </div>
+      <ExportButton />
       <PublishButton pageId={pageId} tenantId={tenantId} />
     </div>
   );

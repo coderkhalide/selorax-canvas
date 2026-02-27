@@ -15,7 +15,7 @@ export const buildComponentTool = createTool({
     prompt:       z.string().describe('Full AI prompt for generation'),
   }),
   outputSchema: z.object({ build_id: z.string(), component_id: z.string(), message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const build_id     = crypto.randomUUID();
     const component_id = crypto.randomUUID();
 

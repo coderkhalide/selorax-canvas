@@ -1,15 +1,16 @@
-import { PageRenderer } from '@selorax/renderer';
+import ClientAnalytics from './ClientAnalytics';
 
-const BACKEND = process.env.BACKEND_URL!;
+const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:3001';
 
 export default async function StorePage({ params }: { params: { slug?: string[] } }) {
   const slug     = params.slug ?? [];
-  const tenantId = process.env.TENANT_ID!;
+  const tenantId = process.env.TENANT_ID ?? 'store_001';
   const { pageType, pageSlug } = resolvePageType(slug);
 
-  const res = await fetch(`${BACKEND}/api/serve/${tenantId}/${pageType}/${pageSlug}`, {
-    next: { revalidate: 60 },
-  });
+  const res = await fetch(
+    `${BACKEND}/api/serve/${tenantId}/${pageType}/${pageSlug}`,
+    { next: { revalidate: 60 } },
+  );
 
   if (!res.ok) {
     return (
@@ -20,13 +21,22 @@ export default async function StorePage({ params }: { params: { slug?: string[] 
     );
   }
 
-  const { tree } = await res.json();
+  const { tree, pageId, funnelContext, experimentContext } = await res.json();
   const data = {
     store: { name: process.env.TENANT_NAME ?? 'My Store' },
     device: 'desktop',
   };
 
-  return <PageRenderer tree={tree} data={data} />;
+  return (
+    <ClientAnalytics
+      tree={tree}
+      data={data}
+      pageId={pageId}
+      tenantId={tenantId}
+      funnelContext={funnelContext ?? null}
+      experimentContext={experimentContext ?? null}
+    />
+  );
 }
 
 function resolvePageType(slug: string[]): { pageType: string; pageSlug: string } {

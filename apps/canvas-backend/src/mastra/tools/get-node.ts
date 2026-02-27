@@ -11,7 +11,7 @@ export const getNodeTool = createTool({
     node_id:   z.string(),
   }),
   outputSchema: z.object({ node: z.any().nullable() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const flatNodes = await getPageNodes(context.page_id, context.tenant_id);
     const node = flatNodes.find(n => n.id === context.node_id) ?? null;
     if (!node) return { node: null };
@@ -42,7 +42,7 @@ export const getNodeChildrenTool = createTool({
     node_id:   z.string(),
   }),
   outputSchema: z.object({ children: z.array(z.any()) }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const flatNodes = await getPageNodes(context.page_id, context.tenant_id);
     const children = flatNodes
       .filter(n => n.parent_id === context.node_id)

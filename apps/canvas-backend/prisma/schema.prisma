@@ -19,6 +19,8 @@ model Page {
   metaDescription    String?   @db.Text @map("meta_description")
   createdAt          DateTime  @default(now()) @map("created_at")
   publishedAt        DateTime? @map("published_at")
+  thumbnailUrl       String?   @map("thumbnail_url")
+  thumbnailUpdatedAt DateTime? @map("thumbnail_updated_at")
 
   versions     PageVersion[]
   experiments  Experiment[]
@@ -216,6 +218,9 @@ model ConversionEvent {
   variantId    String   @map("variant_id")
   sessionId    String   @map("session_id")
   visitorId    String   @map("visitor_id")
+  pageId          String?  @map("page_id")
+  funnelId        String?  @map("funnel_id")
+  funnelStepOrder Int?     @map("funnel_step_order")
   eventType    String   @map("event_type")
   elementId    String?  @map("element_id")
   elementLabel String?  @map("element_label")
@@ -229,6 +234,8 @@ model ConversionEvent {
   @@index([variantId])
   @@index([experimentId, eventType])
   @@index([tenantId, occurredAt])
+  @@index([tenantId, pageId])
+  @@index([tenantId, funnelId])
   @@map("conversion_events")
 }
 

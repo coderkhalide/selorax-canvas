@@ -10,7 +10,7 @@ export const searchComponentsTool = createTool({
     query:     z.string().describe('Search term — name, category, or description'),
   }),
   outputSchema: z.object({ components: z.array(z.any()), count: z.number() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const components = await prisma.component.findMany({
       where: {
         OR: [

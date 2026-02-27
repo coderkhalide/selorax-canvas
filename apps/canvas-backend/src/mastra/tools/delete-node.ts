@@ -10,8 +10,8 @@ export const deleteNodeTool = createTool({
     node_id:   z.string().describe('Node ID to delete (will cascade to all children)'),
   }),
   outputSchema: z.object({ message: z.string() }),
-  execute: async ({ context }) => {
-    await callReducer('delete_node_cascade', { node_id: context.node_id });
+  execute: async (context) => {
+    await callReducer('delete_node_cascade', { node_id: context.node_id, tenant_id: context.tenant_id });
     return { message: `Node ${context.node_id} and all children deleted` };
   },
 });

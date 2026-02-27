@@ -9,7 +9,7 @@ export const listPagesTool = createTool({
     tenant_id: z.string(),
   }),
   outputSchema: z.object({ pages: z.array(z.any()) }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const pages = await prisma.page.findMany({
       where: { tenantId: context.tenant_id },
       select: {

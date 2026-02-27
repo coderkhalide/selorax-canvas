@@ -1,7 +1,11 @@
 {
   "name": "selorax-canvas",
   "private": true,
-  "workspaces": ["apps/*", "packages/*", "spacetime"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "spacetime"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "test:e2e": "tsx scripts/test-e2e.ts",
@@ -21,6 +25,8 @@
     "test:renderer": "npm run test --workspace=packages/renderer"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@vitejs/plugin-react": "^5.1.4",
     "concurrently": "^8.0.0",
     "dotenv": "^16.0.0",
     "tsx": "^4.0.0",

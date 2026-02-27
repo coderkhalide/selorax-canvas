@@ -7,13 +7,12 @@ function createRedisClient() {
     return null;
   }
   const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
-  // DigitalOcean managed Redis uses rediss:// (TLS) — normalise if bare redis:// is provided
-  const effectiveUrl = !isLocal && url.startsWith('redis://') ? url.replace('redis://', 'rediss://') : url;
+  // Use URL as-is; only add TLS option when scheme is rediss://
+  const useTLS = url.startsWith('rediss://');
 
-  const client = new Redis(effectiveUrl, {
+  const client = new Redis(url, {
     maxRetriesPerRequest: null, // don't retry commands — fail fast so routes fallback to MySQL
-    lazyConnect: true,
-    tls: !isLocal ? { rejectUnauthorized: false } : undefined,
+    tls: useTLS ? { rejectUnauthorized: false } : undefined,
     retryStrategy: (times) => {
       if (times > 3) {
         console.warn('[Redis] Max retries reached — running without cache');

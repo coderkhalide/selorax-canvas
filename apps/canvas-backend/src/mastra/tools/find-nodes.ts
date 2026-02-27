@@ -13,7 +13,7 @@ export const findNodesTool = createTool({
     prop_value: z.string().optional().describe('Filter by prop value (partial match)'),
   }),
   outputSchema: z.object({ nodes: z.array(z.any()), count: z.number() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const flatNodes = await getPageNodes(context.page_id, context.tenant_id);
     let filtered = flatNodes;
 

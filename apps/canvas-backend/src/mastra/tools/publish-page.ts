@@ -10,7 +10,7 @@ export const publishPageTool = createTool({
     page_id:   z.string(),
   }),
   outputSchema: z.object({ version_id: z.string(), message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const result = await publishPage(context.page_id, context.tenant_id);
     return { version_id: result.id, message: `Page published. Version: ${result.id}` };
   },

@@ -11,7 +11,7 @@ export const getPageTreeTool = createTool({
     page_id:   z.string().describe('Page ID to fetch'),
   }),
   outputSchema: z.object({ tree: z.any(), node_count: z.number() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     const flatNodes = await getPageNodes(context.page_id, context.tenant_id);
     return { tree: buildTree(flatNodes), node_count: flatNodes.length };
   },

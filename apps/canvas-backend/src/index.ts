@@ -2,12 +2,14 @@ import express   from 'express';
 import cors      from 'cors';
 import { tenantMiddleware } from './middleware/tenant';
 import pagesRouter      from './routes/pages';
+import thumbnailRouter  from './routes/thumbnail';
 import serveRouter      from './routes/serve';
 import componentsRouter from './routes/components';
 import funnelsRouter    from './routes/funnels';
 import aiRouter         from './routes/ai';
 import experimentsRouter from './routes/experiments';
 import eventsRouter     from './routes/events';
+import analyticsRouter  from './routes/analytics';
 import devRouter        from './routes/dev';
 
 const app  = express();
@@ -23,6 +25,7 @@ app.get('/health', (_req, res) => res.json({
   stdb:     process.env.SPACETIMEDB_URL,
 }));
 
+app.use('/api/pages',       tenantMiddleware, thumbnailRouter);
 app.use('/api/pages',       tenantMiddleware, pagesRouter);
 app.use('/api/serve',       serveRouter);           // public — no tenant middleware
 app.use('/api/components',  tenantMiddleware, componentsRouter);
@@ -30,6 +33,7 @@ app.use('/api/funnels',     tenantMiddleware, funnelsRouter);
 app.use('/api/ai',          tenantMiddleware, aiRouter);
 app.use('/api/experiments', tenantMiddleware, experimentsRouter);
 app.use('/api/events',      eventsRouter);          // public — fire-and-forget
+app.use('/api/analytics',   tenantMiddleware, analyticsRouter);
 
 // Dev/seed routes — only in MVP mode
 if (process.env.MVP_MODE === 'true') {

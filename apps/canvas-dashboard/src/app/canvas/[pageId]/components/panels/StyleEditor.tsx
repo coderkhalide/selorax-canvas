@@ -31,8 +31,8 @@ export default function StyleEditor({ node, conn, tenantId }: StyleEditorProps) 
     if (!conn) return;
     setSaving(true);
     try {
-      conn.reducers.update_node_styles({
-        node_id: node.id,
+      conn.reducers.updateNodeStyles({
+        nodeId: node.id,
         styles: JSON.stringify({ [key]: value }),
       });
     } finally {

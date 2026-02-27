@@ -7,6 +7,7 @@ import { redis }       from '../redis/client';
 import { callReducer, getPageNodes, opt } from '../spacetime/client';
 import { getTenant }   from '../middleware/tenant';
 import { publishPage } from '../publish';
+import { uploadToR2, r2Configured } from '../utils/r2';
 
 const router = Router();
 
@@ -235,147 +236,164 @@ router.get('/redis-health', async (_req, res) => {
   }
 });
 
-// POST /api/dev/test-r2 — upload a minimal ESM component to R2 and verify it
-router.post('/test-r2', async (_req, res) => {
+// POST /api/dev/seed-component — full end-to-end component test:
+// create component in MySQL → compile ESM → upload to R2 → inject into home page → publish
+router.post('/seed-component', async (req, res) => {
   try {
-    const endpoint  = process.env.S3_ENDPOINT!;
-    const bucket    = process.env.S3_BUCKET!;
-    const accessKey = process.env.S3_ACCESS_KEY!;
-    const secretKey = process.env.S3_SECRET_KEY!;
-    const publicUrl = process.env.S3_PUBLIC_URL!;
+    const tenant   = getTenant(req);
+    const tenantId = tenant.id;
+    const slug     = req.body.slug ?? 'index';
+    const pageType = req.body.pageType ?? 'home';
 
-    if (!endpoint || !bucket || !accessKey || !secretKey) {
-      return res.status(500).json({ ok: false, error: 'R2 credentials not configured' });
+    if (!r2Configured()) {
+      return res.status(500).json({ ok: false, error: 'R2 not configured' });
     }
 
-    // Minimal valid ESM React component
-    const componentCode = `
-// SeloraX Test Component — uploaded ${new Date().toISOString()}
+    // 1. Find existing home page
+    const page = await prisma.page.findFirst({ where: { tenantId, slug, pageType } });
+    if (!page) {
+      return res.status(404).json({ ok: false, error: 'Page not found — run seed-and-publish first' });
+    }
+
+    // 2. Create component record in MySQL
+    const component = await prisma.component.create({
+      data: {
+        tenantId,
+        name:        'TestBanner',
+        description: 'A simple banner component loaded from Cloudflare R2',
+        category:    'banner',
+        schemaJson:  JSON.stringify({
+          title: { type: 'string', default: 'Hello from R2!', label: 'Title' },
+          color: { type: 'color',  default: '#7C3AED', label: 'Background color' },
+        }),
+        origin:  'dev',
+        isPublic: false,
+        currentVersion: '1.0.0',
+      },
+    });
+
+    // 3. ESM component — uses React.createElement so it works via dynamic import
+    //    No hooks → no multiple-React-instance issues
+    const sourceCode = `
+// SeloraX TestBanner component — ${new Date().toISOString()}
+// ESM component loaded from Cloudflare R2 via dynamic import
+import { createElement as h } from 'https://esm.sh/react@18.3.1';
+
 export default function TestBanner({ settings = {}, data = {} }) {
   const { title = 'Hello from R2!', color = '#7C3AED' } = settings;
-  return {
-    type: 'div',
-    props: {
-      style: {
-        padding: '20px', background: color, color: '#fff',
-        fontFamily: 'system-ui', borderRadius: '8px', textAlign: 'center',
-      },
-      children: [
-        { type: 'h2', props: { children: title, style: { margin: 0 } } },
-        { type: 'p', props: { children: 'Store: ' + (data?.store?.name ?? 'Unknown'), style: { margin: '8px 0 0', opacity: 0.8 } } },
-      ],
+  return h('div', {
+    style: {
+      padding: '32px 20px',
+      background: color,
+      color: '#fff',
+      fontFamily: 'system-ui, sans-serif',
+      borderRadius: '12px',
+      textAlign: 'center',
+      margin: '24px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
     },
-  };
+  },
+    h('h2', { style: { margin: '0 0 8px', fontSize: '28px', fontWeight: 800 } }, title),
+    h('p', { style: { margin: 0, opacity: 0.85 } }, 'Store: ' + (data?.store?.name ?? 'Unknown')),
+    h('p', { style: { margin: '8px 0 0', fontSize: '12px', opacity: 0.6 } }, '✅ Loaded from Cloudflare R2'),
+  );
 }
 `.trim();
 
-    const key     = `components/test-banner-${Date.now()}.js`;
-    const putUrl  = `${endpoint}/${bucket}/${key}`;
+    // 4. Upload ESM to R2
+    const key = `components/${tenantId}/${component.id}/1.0.0.js`;
+    const compiledUrl = await uploadToR2(key, sourceCode);
 
-    // AWS SigV4 signing for R2 upload
-    const signed = await signRequest({
-      method: 'PUT',
-      url: putUrl,
-      body: componentCode,
-      contentType: 'application/javascript',
-      accessKey,
-      secretKey,
-      region: 'auto',
-      service: 's3',
+    // 5. Create ComponentVersion in MySQL
+    await prisma.componentVersion.create({
+      data: {
+        componentId:   component.id,
+        version:       '1.0.0',
+        sourceCode,
+        compiledUrl,
+        changeSummary: 'Initial version — dev seed',
+        isStable:      true,
+      },
     });
 
-    const uploadRes = await fetch(putUrl, {
-      method: 'PUT',
-      headers: signed,
-      body: componentCode,
+    // Update component with URL
+    await prisma.component.update({
+      where: { id: component.id },
+      data:  { currentUrl: compiledUrl },
     });
 
-    if (!uploadRes.ok) {
-      const body = await uploadRes.text();
-      return res.status(500).json({ ok: false, uploadStatus: uploadRes.status, error: body.slice(0, 500) });
-    }
+    // 6. Find the root layout node in STDB so we can parent the component correctly
+    const existingNodes = await getPageNodes(page.id, tenantId);
+    const rootNode = existingNodes.find(n => !n.parent_id) ?? null;
 
-    const publicComponentUrl = `${publicUrl}/${key}`;
+    const nodeId = crypto.randomUUID();
+    await callReducer('insert_node', {
+      id:                nodeId,
+      page_id:           page.id,
+      tenant_id:         tenantId,
+      parent_id:         opt(rootNode?.id ?? null),  // child of root, or root if none exists
+      order:             'b0',       // after 'a0' hero
+      node_type:         'component',
+      styles:            JSON.stringify({ width: '100%' }),
+      props:             JSON.stringify({}),
+      settings:          JSON.stringify({ title: 'Loaded from R2!', color: '#059669' }),
+      children_ids:      '[]',
+      component_id:      opt(component.id),
+      component_url:     opt(compiledUrl),
+      component_version: opt('1.0.0'),
+    });
 
-    // Verify it's publicly accessible
-    const verifyRes = await fetch(publicComponentUrl);
-    const publicOk  = verifyRes.ok;
-    const preview   = publicOk ? (await verifyRes.text()).slice(0, 100) : null;
+    // 7. Publish the page (STDB → MySQL → Redis)
+    await new Promise(r => setTimeout(r, 500));
+    const published = await publishPage(page.id, tenantId);
 
     res.json({
       ok: true,
-      uploadStatus: uploadRes.status,
-      key,
-      publicUrl: publicComponentUrl,
-      publiclyAccessible: publicOk,
-      preview,
+      component: { id: component.id, name: 'TestBanner', compiledUrl },
+      nodeId,
+      published,
+      serveUrl: `/api/serve/${tenantId}/${pageType}/${slug}`,
+      storefront: `http://localhost:3003`,
+      note: 'PageRenderer will dynamic-import the component from R2 in the browser',
     });
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message, stack: err.stack?.split('\n').slice(0, 3) });
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack?.split('\n').slice(0, 5) });
   }
 });
 
-// ── Minimal AWS SigV4 signer ──────────────────────────────────────────────────
-import { createHmac, createHash } from 'crypto';
+// POST /api/dev/test-r2 — upload a minimal ESM component to R2 and verify it
+router.post('/test-r2', async (_req, res) => {
+  try {
+    if (!r2Configured()) {
+      return res.status(500).json({ ok: false, error: 'R2 credentials not configured' });
+    }
 
-async function signRequest({
-  method, url, body, contentType, accessKey, secretKey, region, service,
-}: {
-  method: string; url: string; body: string; contentType: string;
-  accessKey: string; secretKey: string; region: string; service: string;
-}): Promise<Record<string, string>> {
-  const parsed    = new URL(url);
-  const now       = new Date();
-  const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z'; // 20240101T120000Z
-  const dateStamp = amzDate.slice(0, 8); // 20240101
-
-  const payloadHash = createHash('sha256').update(body).digest('hex');
-
-  const headers: Record<string, string> = {
-    'host':                 parsed.host,
-    'x-amz-date':          amzDate,
-    'x-amz-content-sha256': payloadHash,
-    'content-type':        contentType,
-    'content-length':      Buffer.byteLength(body).toString(),
-  };
-
-  const signedHeaders = Object.keys(headers).sort().join(';');
-  const canonicalHeaders = Object.entries(headers)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${v}\n`)
-    .join('');
-
-  const canonicalRequest = [
-    method,
-    parsed.pathname,
-    '',
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join('\n');
-
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = [
-    'AWS4-HMAC-SHA256',
-    amzDate,
-    credentialScope,
-    createHash('sha256').update(canonicalRequest).digest('hex'),
-  ].join('\n');
-
-  const signingKey = hmac(
-    hmac(hmac(hmac(`AWS4${secretKey}`, dateStamp), region), service),
-    'aws4_request',
+    const componentCode = `
+// SeloraX Test Component — ${new Date().toISOString()}
+import { createElement as h } from 'https://esm.sh/react@18.3.1';
+export default function TestBanner({ settings = {}, data = {} }) {
+  const { title = 'Hello from R2!', color = '#7C3AED' } = settings;
+  return h('div', {
+    style: { padding: '20px', background: color, color: '#fff',
+      fontFamily: 'system-ui', borderRadius: '8px', textAlign: 'center' },
+  },
+    h('h2', { style: { margin: 0 } }, title),
+    h('p',  { style: { margin: '8px 0 0', opacity: 0.8 } }, 'Store: ' + (data?.store?.name ?? 'Unknown')),
   );
-  const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+}`.trim();
 
-  return {
-    ...headers,
-    'authorization': `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-  };
-}
+    const key = `components/test-banner-${Date.now()}.js`;
+    const publicComponentUrl = await uploadToR2(key, componentCode);
 
-function hmac(key: string | Buffer, data: string): Buffer {
-  return createHmac('sha256', key).update(data).digest();
-}
+    // Verify it's publicly accessible
+    const verifyRes = await fetch(publicComponentUrl);
+    const preview   = verifyRes.ok ? (await verifyRes.text()).slice(0, 100) : null;
+
+    res.json({ ok: true, key, publicUrl: publicComponentUrl,
+      publiclyAccessible: verifyRes.ok, preview });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 export default router;

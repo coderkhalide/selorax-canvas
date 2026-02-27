@@ -3,9 +3,10 @@ import { anthropic } from '@ai-sdk/anthropic';
 import * as tools    from '../tools';
 
 export const canvasAgent = new Agent({
-  id:   'canvas-agent',
-  name: 'SeloraX Canvas Agent',
-  model: anthropic('claude-sonnet-4-6'),
+  id:          'canvas-agent',
+  name:        'SeloraX Canvas Agent',
+  description: 'AI canvas designer for SeloraX — edits page nodes, manages components, and publishes pages.',
+  model:       anthropic('claude-sonnet-4-6'),
 
   instructions: `
     You are an expert e-commerce designer operating the SeloraX visual canvas.
@@ -40,12 +41,32 @@ export const canvasAgent = new Agent({
     - Headlines: benefit-focused, not feature-focused
     - White space is your friend — don't crowd elements
 
+    VISUAL INSPECTION:
+    - Use get_canvas_screenshot to visually inspect the current canvas before making design decisions
+
+    ANALYTICS-DRIVEN SUGGESTIONS:
+    - ALWAYS call get_page_analytics AND get_canvas_screenshot BEFORE suggesting any change
+    - Low-risk changes (copy, color, font): propose directly with specific values, ask "Apply directly? [Yes/No]"
+    - Structural changes (layout, new sections): propose as A/B test, ask "Create A/B test? [Yes/No]"
+    - NEVER apply anything without explicit user permission
+    - Log every applied change with before/after stats in your response
+
+    PAGE MANAGEMENT:
+    - Use create_page, duplicate_page, rename_page to manage pages
+
+    FUNNELS:
+    - Use list_funnels, create_funnel, update_funnel_steps to manage conversion funnels
+
+    A/B EXPERIMENTS:
+    - Use create_experiment, activate_experiment, get_experiment_results to run A/B tests
+
     WORKFLOW:
     1. Call get_page_tree to understand current state
-    2. Plan the changes needed
-    3. Execute changes with appropriate tools
-    4. For new components: search first, build only if not found
-    5. When done, briefly summarize what changed and why it improves conversions
+    2. Use get_canvas_screenshot to visually inspect the canvas before design decisions
+    3. Plan the changes needed
+    4. Execute changes with appropriate tools
+    5. For new components: search first, build only if not found
+    6. When done, briefly summarize what changed and why it improves conversions
 
     COLOR SYSTEM (use these unless told otherwise):
     - Primary:   #7C3AED (purple)
@@ -58,22 +79,33 @@ export const canvasAgent = new Agent({
   `,
 
   tools: {
-    getPageTree:        tools.getPageTreeTool,
-    getNode:            tools.getNodeTool,
-    getNodeChildren:    tools.getNodeChildrenTool,
-    findNodes:          tools.findNodesTool,
-    insertNode:         tools.insertNodeTool,
-    updateNodeStyles:   tools.updateNodeStylesTool,
-    updateNodeProps:    tools.updateNodePropsTool,
-    updateNodeSettings: tools.updateNodeSettingsTool,
-    moveNode:           tools.moveNodeTool,
-    deleteNode:         tools.deleteNodeTool,
-    searchComponents:   tools.searchComponentsTool,
-    getComponent:       tools.getComponentTool,
-    buildComponent:     tools.buildComponentTool,
-    injectComponent:    tools.injectComponentTool,
-    listPages:          tools.listPagesTool,
-    publishPage:        tools.publishPageTool,
-    getAnalytics:       tools.getAnalyticsTool,
+    getPageTree:           tools.getPageTreeTool,
+    getNode:               tools.getNodeTool,
+    getNodeChildren:       tools.getNodeChildrenTool,
+    findNodes:             tools.findNodesTool,
+    insertNode:            tools.insertNodeTool,
+    updateNodeStyles:      tools.updateNodeStylesTool,
+    updateNodeProps:       tools.updateNodePropsTool,
+    updateNodeSettings:    tools.updateNodeSettingsTool,
+    moveNode:              tools.moveNodeTool,
+    deleteNode:            tools.deleteNodeTool,
+    searchComponents:      tools.searchComponentsTool,
+    getComponent:          tools.getComponentTool,
+    buildComponent:        tools.buildComponentTool,
+    injectComponent:       tools.injectComponentTool,
+    listPages:             tools.listPagesTool,
+    publishPage:           tools.publishPageTool,
+    getAnalytics:          tools.getAnalyticsTool,
+    getCanvasScreenshot:   tools.getCanvasScreenshot,
+    createPage:            tools.createPageTool,
+    duplicatePage:         tools.duplicatePageTool,
+    renamePage:            tools.renamePageTool,
+    listFunnels:           tools.listFunnelsTool,
+    createFunnel:          tools.createFunnelTool,
+    updateFunnelSteps:     tools.updateFunnelStepsTool,
+    createExperiment:      tools.createExperimentTool,
+    activateExperiment:    tools.activateExperimentTool,
+    getExperimentResults:  tools.getExperimentResultsTool,
+    get_page_analytics:    tools.getPageAnalyticsTool,
   },
 });

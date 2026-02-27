@@ -11,10 +11,11 @@ export const updateNodeSettingsTool = createTool({
     settings:  z.record(z.any()).describe('Component-specific settings to merge.'),
   }),
   outputSchema: z.object({ message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     await callReducer('update_node_settings', {
-      node_id:  context.node_id,
-      settings: JSON.stringify(context.settings),
+      node_id:   context.node_id,
+      tenant_id: context.tenant_id,
+      settings:  JSON.stringify(context.settings),
     });
     return { message: `Settings updated for node ${context.node_id}` };
   },

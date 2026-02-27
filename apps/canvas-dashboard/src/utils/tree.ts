@@ -4,23 +4,24 @@
 export function buildTree(flatNodes: any[]): any {
   const map = new Map<string, any>();
   for (const n of flatNodes) {
+    // Row fields are camelCase from SpacetimeDB generated bindings
     map.set(n.id, {
-      id: n.id, type: n.node_type, _order: n.order,
+      id: n.id, type: n.nodeType, _order: n.order,
       styles:   safeJson(n.styles,   {}),
       props:    safeJson(n.props,    {}),
       settings: safeJson(n.settings, {}),
       children: [],
-      url:              n.component_url     ?? undefined,
-      componentId:      n.component_id      ?? undefined,
-      componentVersion: n.component_version ?? undefined,
+      url:              n.componentUrl     ?? undefined,
+      componentId:      n.componentId      ?? undefined,
+      componentVersion: n.componentVersion ?? undefined,
     });
   }
 
   let root: any = null;
   for (const n of flatNodes) {
     const treeNode = map.get(n.id)!;
-    if (!n.parent_id) { root = treeNode; }
-    else { map.get(n.parent_id)?.children.push(treeNode); }
+    if (!n.parentId) { root = treeNode; }
+    else { map.get(n.parentId)?.children.push(treeNode); }
   }
 
   function sort(node: any) {

@@ -9,7 +9,7 @@ const STATUS_COLORS: Record<string, string> = {
 interface AIStatusBarProps {
   operation: {
     status: string;
-    current_action: string;
+    currentAction: string;
     progress: number;
     prompt: string;
   };
@@ -23,7 +23,7 @@ export default function AIStatusBar({ operation }: AIStatusBarProps) {
         background: color,
         animation: operation.status !== 'done' ? 'pulse 1s infinite' : 'none',
       }} />
-      <span className="ai-action">{operation.current_action}</span>
+      <span className="ai-action">{operation.currentAction}</span>
       <div className="ai-progress-track">
         <div className="ai-progress-fill" style={{ width: `${operation.progress}%`, background: color }} />
       </div>

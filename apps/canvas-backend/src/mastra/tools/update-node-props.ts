@@ -11,10 +11,11 @@ export const updateNodePropsTool = createTool({
     props:     z.record(z.any()).describe('Props to merge. Use {{store.name}} for token replacement.'),
   }),
   outputSchema: z.object({ message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     await callReducer('update_node_props', {
-      node_id: context.node_id,
-      props:   JSON.stringify(context.props),
+      node_id:   context.node_id,
+      tenant_id: context.tenant_id,
+      props:     JSON.stringify(context.props),
     });
     return { message: `Props updated for node ${context.node_id}` };
   },

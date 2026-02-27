@@ -11,10 +11,11 @@ export const updateNodeStylesTool = createTool({
     styles:    z.record(z.any()).describe('CSS properties to merge. Use _sm/_md/_lg for responsive.'),
   }),
   outputSchema: z.object({ message: z.string() }),
-  execute: async ({ context }) => {
+  execute: async (context) => {
     await callReducer('update_node_styles', {
-      node_id: context.node_id,
-      styles:  JSON.stringify(context.styles),
+      node_id:   context.node_id,
+      tenant_id: context.tenant_id,
+      styles:    JSON.stringify(context.styles),
     });
     return { message: `Styles updated for node ${context.node_id}` };
   },
