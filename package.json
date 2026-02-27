@@ -16,7 +16,9 @@
     "stdb:deploy": "npm run stdb:publish && npm run stdb:generate",
     "docker:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "test:backend": "npm run test --workspace=apps/canvas-backend",
+    "test:renderer": "npm run test --workspace=packages/renderer"
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
