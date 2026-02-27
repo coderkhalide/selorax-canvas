@@ -2,19 +2,19 @@
 import { useState, useCallback, useRef } from 'react';
 import CanvasNode from './CanvasNode';
 import { buildSelectionRect, rectsIntersect, type Point } from '@/utils/rubber-band';
+import { useCanvas } from '@/context/CanvasContext';
 
 interface CanvasProps {
   tree: any;
   cursors: any[];
-  selectedIds: Set<string>;
-  onSelect: (id: string | null, shiftKey?: boolean) => void;
-  onMultiSelect: (ids: string[]) => void;
   onContextMenu: (x: number, y: number, targetId: string | null) => void;
+  dropInfo?: { overId: string; position: 'before' | 'after' | 'inside' } | null;
 }
 
 export default function Canvas({
-  tree, cursors, selectedIds, onSelect, onMultiSelect, onContextMenu,
+  tree, cursors, onContextMenu, dropInfo,
 }: CanvasProps) {
+  const { selectedIds, selectNode, multiSelectNodes } = useCanvas();
   const [rubberStart, setRubberStart] = useState<Point | null>(null);
   const [rubberEnd, setRubberEnd] = useState<Point | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -67,13 +67,13 @@ export default function Canvas({
           }
         });
 
-        onMultiSelect(ids); // empty array clears selection
+        multiSelectNodes(ids); // empty array clears selection
       }
     }
 
     setRubberStart(null);
     setRubberEnd(null);
-  }, [rubberStart, rubberEnd, onMultiSelect]);
+  }, [rubberStart, rubberEnd, multiSelectNodes]);
 
   const handleMouseLeave = useCallback(() => {
     // Cancel rubber band without triggering selection
@@ -98,7 +98,7 @@ export default function Canvas({
     <div
       className="canvas-viewport"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onSelect(null);
+        if (e.target === e.currentTarget) selectNode(null);
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -108,7 +108,7 @@ export default function Canvas({
     >
       <div className="canvas-frame" ref={frameRef}>
         {tree ? (
-          <CanvasNode node={tree} selectedIds={selectedIds} onSelect={onSelect} depth={0} />
+          <CanvasNode node={tree} depth={0} dropInfo={dropInfo} />
         ) : (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -13,7 +13,7 @@ import AIStatusBar  from './ai/AIStatusBar';
 import ContextMenu, { type ContextMenuAction } from './ContextMenu';
 import {
   DndContext, DragOverlay, closestCenter,
-  type DragEndEvent, type DragStartEvent,
+  type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core';
 import { resolveDropOrder } from '@/utils/drop-order';
 import { copyNodes, pasteNodes, duplicateNodes } from '@/utils/clipboard';
@@ -30,10 +30,11 @@ function CanvasUI({
   aiOps: any[];
   conn: DbConnection;
 }) {
-  const { flatNodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId } = useCanvas();
+  const { flatNodes, nodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId, moveNode } = useCanvas();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; targetId: string | null } | null>(null);
   const [isPublished, setIsPublished] = useState(false);
+  const [dropInfo, setDropInfo] = useState<{ overId: string; position: 'before' | 'after' | 'inside' } | null>(null);
 
   useEffect(() => {
     const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
@@ -47,53 +48,65 @@ function CanvasUI({
       .catch(() => {});
   }, [pageId, tenantId]);
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setDraggingId(event.active.id as string);
-  }, [setDraggingId]);
+  // ── DnD handlers ────────────────────────────────────────────────────────────
+
+  const handleDragOver = useCallback((e: DragOverEvent) => {
+    if (!e.over) { setDropInfo(null); return; }
+    const overId   = e.over.id as string;
+    const overNode = nodes.get(overId);
+    if (!overNode) { setDropInfo(null); return; }
+    const y   = (e.activatorEvent as MouseEvent).clientY;
+    const el  = document.querySelector(`[data-node-id="${overId}"]`);
+    const rect = el?.getBoundingClientRect();
+    if (!rect) { setDropInfo(null); return; }
+    const relY = (y - rect.top) / rect.height;
+    let position: 'before' | 'after' | 'inside';
+    if (overNode.nodeType === 'layout') {
+      position = relY < 0.25 ? 'before' : relY > 0.75 ? 'after' : 'inside';
+    } else {
+      position = relY < 0.5 ? 'before' : 'after';
+    }
+    setDropInfo({ overId, position });
+  }, [nodes]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setDraggingId(null);
+    const currentDropInfo = dropInfo;
+    setDropInfo(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const activeNode = flatNodes.find(n => n.id === active.id);
-    const overNode   = flatNodes.find(n => n.id === over.id);
+    const activeNode = nodes.get(active.id as string);
+    const overNode   = nodes.get(over.id as string);
     if (!activeNode || !overNode) return;
 
-    // Guard: check overNode is not a descendant of activeNode
-    const isDescendant = (nodeId: string, ancestorId: string): boolean => {
-      let current = flatNodes.find(n => n.id === nodeId);
-      while (current?.parentId) {
-        if (current.parentId === ancestorId) return true;
-        current = flatNodes.find(n => n.id === current!.parentId);
-      }
+    // Guard: prevent drop into own subtree
+    const isDesc = (id: string, anc: string): boolean => {
+      let cur = nodes.get(id);
+      while (cur?.parentId) { if (cur.parentId === anc) return true; cur = nodes.get(cur.parentId); }
       return false;
     };
+    if (isDesc(over.id as string, active.id as string)) return;
 
-    // Drop ONTO a layout node → reparent as last child
-    if (overNode.nodeType === 'layout' && over.id !== activeNode.parentId && !isDescendant(over.id as string, active.id as string)) {
-      const children = flatNodes
+    const position = currentDropInfo?.position ?? 'after';
+    if (position === 'inside' && overNode.nodeType === 'layout') {
+      const children = Array.from(nodes.values())
         .filter(n => n.parentId === over.id)
         .sort((a, b) => a.order.localeCompare(b.order));
-      const newOrder = resolveDropOrder(children[children.length - 1]?.order, undefined);
-      conn.reducers.moveNode({ nodeId: active.id as string, newParentId: over.id as string, newOrder });
+      moveNode(active.id as string, over.id as string,
+        resolveDropOrder(children.at(-1)?.order, undefined));
       return;
     }
-
-    // Drop ADJACENT to a sibling → reorder (same parent)
     const newParentId = overNode.parentId ?? null;
-    const siblings = flatNodes
+    const siblings = Array.from(nodes.values())
       .filter(n => n.parentId === newParentId && n.id !== active.id)
       .sort((a, b) => a.order.localeCompare(b.order));
-    const overIndex  = siblings.findIndex(n => n.id === over.id);
-    const newOrder   = resolveDropOrder(siblings[overIndex - 1]?.order, siblings[overIndex]?.order);
-
-    conn.reducers.moveNode({
-      nodeId:      active.id as string,
-      newParentId: newParentId ?? 'root',
-      newOrder,
-    });
-  }, [conn, flatNodes, setDraggingId]);
+    const overIdx = siblings.findIndex(n => n.id === over.id);
+    const newOrder = position === 'before'
+      ? resolveDropOrder(siblings[overIdx - 1]?.order, overNode.order)
+      : resolveDropOrder(overNode.order, siblings[overIdx + 1]?.order);
+    moveNode(active.id as string, newParentId, newOrder);
+  }, [nodes, dropInfo, setDraggingId, moveNode]);
 
   const lastSelectedId = [...selectedIds].at(-1) ?? null;
   const tree           = flatNodes.length > 0 ? buildTree([...flatNodes]) : null;
@@ -450,7 +463,8 @@ function CanvasUI({
   return (
     <DndContext
       collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
+      onDragStart={(e) => setDraggingId(e.active.id as string)}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="canvas-layout">
@@ -466,9 +480,8 @@ function CanvasUI({
             }} />}
             <Canvas
               tree={tree} cursors={cursors}
-              selectedIds={selectedIds} onSelect={selectNode}
-              onMultiSelect={multiSelectNodes}
               onContextMenu={handleContextMenu}
+              dropInfo={dropInfo}
             />
             <AIBar
               conn={conn} pageId={pageId}
