@@ -149,6 +149,10 @@ export function CanvasContextProvider({
     draggingId: null,
   } satisfies CanvasState);
 
+  // Fix 2: connRef to avoid stale closure in debounced timer
+  const connRef = useRef<any>(conn);
+  useEffect(() => { connRef.current = conn; }, [conn]);
+
   useEffect(() => {
     dispatch({ type: 'STDB_SYNC', nodes: stdbNodes });
   }, [stdbNodes]);
@@ -158,11 +162,19 @@ export function CanvasContextProvider({
   const queueSync = useCallback((op: () => void) => {
     queue.current.push(op);
     if (timer.current) clearTimeout(timer.current);
+    // Fix 2: use connRef.current instead of stale conn closure
     timer.current = setTimeout(() => {
-      if (!conn) { queue.current = []; return; }
+      if (!connRef.current) { queue.current = []; return; }
       queue.current.splice(0).forEach(fn => fn());
     }, 100);
-  }, [conn]);
+  }, []);
+
+  // Fix 1: Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
 
   const flatNodes    = Array.from(state.nodes.values());
   const lastSelId    = [...state.selectedIds].at(-1) ?? null;
@@ -196,7 +208,8 @@ export function CanvasContextProvider({
     const id = args.id ?? crypto.randomUUID();
     const node: CanvasNode = { ...args, id, pageId, tenantId };
     dispatch({ type: 'INSERT', node });
-    queueSync(() => conn?.reducers.insertNode({
+    // Fix 2: use connRef.current in queued callback
+    queueSync(() => connRef.current?.reducers.insertNode({
       id, pageId, tenantId,
       parentId: node.parentId ?? undefined,
       nodeType: node.nodeType, order: node.order,
@@ -207,33 +220,43 @@ export function CanvasContextProvider({
       componentId: node.componentId,
     }));
     return id;
-  }, [conn, pageId, tenantId, queueSync]);
+  }, [pageId, tenantId, queueSync]);
 
+  // Fix 3: Send merged styles to STDB, not just the patch
   const updateStyles = useCallback((nodeId: string, patch: Record<string, string>) => {
+    const existing = state.nodes.get(nodeId);
+    const merged = { ...JSON.parse(existing?.styles || '{}'), ...patch };
     dispatch({ type: 'UPDATE_STYLES', nodeId, patch });
-    queueSync(() => conn?.reducers.updateNodeStyles({ nodeId, styles: JSON.stringify(patch) }));
-  }, [conn, queueSync]);
+    queueSync(() => connRef.current?.reducers.updateNodeStyles({ nodeId, styles: JSON.stringify(merged) }));
+  }, [queueSync, state.nodes]);
 
+  // Fix 3: Send merged props to STDB, not just the patch
   const updateProps = useCallback((nodeId: string, patch: Record<string, unknown>) => {
+    const existing = state.nodes.get(nodeId);
+    const merged = { ...JSON.parse(existing?.props || '{}'), ...patch };
     dispatch({ type: 'UPDATE_PROPS', nodeId, patch });
-    queueSync(() => conn?.reducers.updateNodeProps({ nodeId, props: JSON.stringify(patch) }));
-  }, [conn, queueSync]);
+    queueSync(() => connRef.current?.reducers.updateNodeProps({ nodeId, props: JSON.stringify(merged) }));
+  }, [queueSync, state.nodes]);
 
+  // Fix 3: Send merged settings to STDB, not just the patch
   const updateSettings = useCallback((nodeId: string, patch: Record<string, unknown>) => {
+    const existing = state.nodes.get(nodeId);
+    const merged = { ...JSON.parse(existing?.settings || '{}'), ...patch };
     dispatch({ type: 'UPDATE_SETTINGS', nodeId, patch });
-    queueSync(() => conn?.reducers.updateNodeSettings({ nodeId, settings: JSON.stringify(patch) }));
-  }, [conn, queueSync]);
+    queueSync(() => connRef.current?.reducers.updateNodeSettings({ nodeId, settings: JSON.stringify(merged) }));
+  }, [queueSync, state.nodes]);
 
   const moveNode = useCallback((nodeId: string, newParentId: string | null, newOrder: string) => {
     dispatch({ type: 'MOVE', nodeId, newParentId, newOrder });
-    queueSync(() => conn?.reducers.moveNode({ nodeId, newParentId: newParentId ?? 'root', newOrder }));
-  }, [conn, queueSync]);
+    queueSync(() => connRef.current?.reducers.moveNode({ nodeId, newParentId: newParentId ?? 'root', newOrder }));
+  }, [queueSync]);
 
+  // Fix 4: Don't debounce deleteNodeCascade — fire immediately to avoid race
   const deleteNode = useCallback((nodeId: string) => {
-    conn?.reducers.unlockNode({ nodeId });
+    connRef.current?.reducers.unlockNode({ nodeId });
+    connRef.current?.reducers.deleteNodeCascade({ nodeId });
     dispatch({ type: 'DELETE', nodeId });
-    queueSync(() => conn?.reducers.deleteNodeCascade({ nodeId }));
-  }, [conn, queueSync]);
+  }, []);
 
   const duplicateSelected = useCallback(() => {
     const selArray = [...state.selectedIds];
@@ -250,7 +273,8 @@ export function CanvasContextProvider({
     const newNodes  = duplicateNodes(selArray, nodesArr, baseOrder);
     newNodes.forEach(n => {
       dispatch({ type: 'INSERT', node: { ...n, pageId, tenantId } as CanvasNode });
-      queueSync(() => conn?.reducers.insertNode({
+      // Fix 2: use connRef.current in queued callback
+      queueSync(() => connRef.current?.reducers.insertNode({
         id: n.id, pageId, tenantId,
         parentId: n.parentId ?? undefined,
         nodeType: n.nodeType, order: n.order,
