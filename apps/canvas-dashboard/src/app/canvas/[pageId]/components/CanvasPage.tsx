@@ -3,7 +3,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import { DbConnection, tables }           from '@/module_bindings';
 import { SpacetimeDBProvider, useTable, useSpacetimeDB } from 'spacetimedb/react';
 import { buildTree }                      from '@/utils/tree';
-import { applySelect, computeGroupParent } from '@/utils/selection';
+import { computeGroupParent }             from '@/utils/selection';
 import Canvas       from './Canvas';
 import LeftPanel    from './panels/LeftPanel';
 import RightPanel   from './panels/RightPanel';
@@ -17,15 +17,21 @@ import {
 } from '@dnd-kit/core';
 import { resolveDropOrder } from '@/utils/drop-order';
 import { copyNodes, pasteNodes, duplicateNodes } from '@/utils/clipboard';
+import { CanvasContextProvider, useCanvas } from '@/context/CanvasContext';
 
-// Inner component — must be inside SpacetimeDBProvider to use useTable
-function CanvasInner({
-  pageId, tenantId, tenantName,
-}: { pageId: string; tenantId: string; tenantName: string }) {
-  const stdb = useSpacetimeDB() as any;
-  const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+// ── CanvasUI — all UI logic, receives conn + cursors + aiOps as props ──────────
+function CanvasUI({
+  pageId, tenantId, tenantName, cursors, aiOps, conn,
+}: {
+  pageId: string;
+  tenantId: string;
+  tenantName: string;
+  cursors: any[];
+  aiOps: any[];
+  conn: DbConnection;
+}) {
+  const { flatNodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId } = useCanvas();
+
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; targetId: string | null } | null>(null);
   const [isPublished, setIsPublished] = useState(false);
 
@@ -41,21 +47,14 @@ function CanvasInner({
       .catch(() => {});
   }, [pageId, tenantId]);
 
-  // useTable — reads from local cache populated by the subscription above.
-  // Subscription is already filtered by page_id + tenant_id, so local cache only
-  // contains the right rows — no additional filter needed here.
-  const [flatNodes] = useTable(tables.canvas_node);
-  const [cursors]   = useTable(tables.active_cursor);
-  const [aiOps]     = useTable(tables.ai_operation);
-
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setDraggingId(event.active.id as string);
-  }, []);
+  }, [setDraggingId]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setDraggingId(null);
     const { active, over } = event;
-    if (!over || active.id === over.id || !conn) return;
+    if (!over || active.id === over.id) return;
 
     const activeNode = flatNodes.find(n => n.id === active.id);
     const overNode   = flatNodes.find(n => n.id === over.id);
@@ -94,15 +93,13 @@ function CanvasInner({
       newParentId: newParentId ?? 'root',
       newOrder,
     });
-  }, [conn, flatNodes]);
+  }, [conn, flatNodes, setDraggingId]);
 
   const lastSelectedId = [...selectedIds].at(-1) ?? null;
   const tree           = flatNodes.length > 0 ? buildTree([...flatNodes]) : null;
   const activeAiOp     = aiOps.find(op => op.status !== 'done' && op.status !== 'error');
-  const selectedNode   = flatNodes.find(n => n.id === lastSelectedId) ?? null;
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!conn) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     conn.reducers.moveCursor({
       x: e.clientX - rect.left,
@@ -112,47 +109,16 @@ function CanvasInner({
     });
   }, [conn, lastSelectedId]);
 
-  const handleSelect = useCallback((id: string | null, shiftKey = false) => {
-    if (!conn) return;
-    if (id === null) {
-      selectedIds.forEach(sid => conn.reducers.unlockNode({ nodeId: sid }));
-      setSelectedIds(new Set());
-      return;
-    }
-    const next = applySelect(selectedIds, id, shiftKey);
-    selectedIds.forEach(sid => {
-      if (!next.has(sid)) conn.reducers.unlockNode({ nodeId: sid });
-    });
-    next.forEach(sid => {
-      if (!selectedIds.has(sid)) conn.reducers.lockNode({ nodeId: sid });
-    });
-    setSelectedIds(next);
-  }, [conn, selectedIds]);
-
-  const handleMultiSelect = useCallback((ids: string[]) => {
-    if (!conn) return;
-    const nextSet = new Set(ids);
-    // Unlock nodes leaving selection
-    selectedIds.forEach(sid => {
-      if (!nextSet.has(sid)) conn.reducers.unlockNode({ nodeId: sid });
-    });
-    // Lock newly selected nodes
-    ids.forEach(id => {
-      if (!selectedIds.has(id)) conn.reducers.lockNode({ nodeId: id });
-    });
-    setSelectedIds(nextSet);
-  }, [conn, selectedIds]);
-
   const handleContextMenu = useCallback((x: number, y: number, targetId: string | null) => {
     if (targetId && !selectedIds.has(targetId)) {
       // Unlock all currently selected nodes
       selectedIds.forEach(sid => conn?.reducers.unlockNode({ nodeId: sid }));
       // Lock the right-clicked node
       conn?.reducers.lockNode({ nodeId: targetId });
-      setSelectedIds(new Set([targetId]));
+      selectNode(targetId);
     }
     setContextMenu({ x, y, targetId });
-  }, [conn, selectedIds]);
+  }, [conn, selectedIds, selectNode]);
 
   const buildContextMenuActions = useCallback((_targetId: string | null): ContextMenuAction[] => {
     const count     = selectedIds.size;
@@ -166,7 +132,6 @@ function CanvasInner({
       icon: '⬜',
       disabled: count < 2,
       onClick: () => {
-        if (!conn) return;
         const parentId = computeGroupParent(selArray, [...flatNodes]);
         const parentChildren = flatNodes
           .filter(n => n.parentId === parentId)
@@ -211,7 +176,7 @@ function CanvasInner({
         // Unlock previously selected nodes, lock new group
         selArray.forEach(id => conn.reducers.unlockNode({ nodeId: id }));
         conn.reducers.lockNode({ nodeId: groupId });
-        setSelectedIds(new Set([groupId]));
+        selectNode(groupId);
       },
     };
 
@@ -220,7 +185,7 @@ function CanvasInner({
       icon: '↗️',
       disabled: !isLayout,
       onClick: () => {
-        if (!conn || !isLayout) return;
+        if (!isLayout) return;
         const layout   = selNodes[0];
         const children = flatNodes
           .filter(n => n.parentId === layout.id)
@@ -230,7 +195,7 @@ function CanvasInner({
         if (children.length === 0) {
           conn.reducers.unlockNode({ nodeId: layout.id });
           conn.reducers.deleteNodeCascade({ nodeId: layout.id });
-          setSelectedIds(new Set());
+          selectNode(null);
           return;
         }
 
@@ -262,7 +227,7 @@ function CanvasInner({
         conn.reducers.unlockNode({ nodeId: layout.id });
         children.forEach(child => conn.reducers.lockNode({ nodeId: child.id }));
         conn.reducers.deleteNodeCascade({ nodeId: layout.id });
-        setSelectedIds(new Set(children.map(c => c.id)));
+        multiSelectNodes(children.map(c => c.id));
       },
     };
 
@@ -272,7 +237,6 @@ function CanvasInner({
       icon: '⬆',
       disabled: count === 0,
       onClick: () => {
-        if (!conn) return;
         // Sort selected ascending by current order so we process lowest-order first
         const sorted = [...selArray].sort((a, b) => {
           const oa = flatNodes.find(n => n.id === a)?.order ?? '';
@@ -307,7 +271,6 @@ function CanvasInner({
       icon: '⬇',
       disabled: count === 0,
       onClick: () => {
-        if (!conn) return;
         // Sort selected descending so we process highest-order first
         const sorted = [...selArray].sort((a, b) => {
           const oa = flatNodes.find(n => n.id === a)?.order ?? '';
@@ -343,7 +306,6 @@ function CanvasInner({
       icon:  allLocked ? '🔓' : '🔒',
       disabled: count === 0,
       onClick: () => {
-        if (!conn) return;
         if (allLocked) {
           selArray.forEach(id => conn.reducers.unlockNode({ nodeId: id }));
         } else {
@@ -361,7 +323,6 @@ function CanvasInner({
       shortcut: '⌘D',
       disabled: count === 0,
       onClick: () => {
-        if (!conn) return;
         const lastSibling = flatNodes
           .filter(n => n.parentId === (firstNode?.parentId ?? null))
           .sort((a, b) => a.order.localeCompare(b.order))
@@ -384,14 +345,10 @@ function CanvasInner({
         const newNodeIds = new Set(newNodes.map(n => n.id));
         const topLevel = newNodes.filter(n => !newNodeIds.has(n.parentId ?? ''));
         // Unlock previously selected nodes
-        if (conn) {
-          selArray.forEach(id => conn.reducers.unlockNode({ nodeId: id }));
-        }
-        setSelectedIds(new Set(topLevel.map(n => n.id)));
+        selArray.forEach(id => conn.reducers.unlockNode({ nodeId: id }));
+        multiSelectNodes(topLevel.map(n => n.id));
         // Lock new top-level duplicated nodes
-        if (conn) {
-          topLevel.forEach(n => conn.reducers.lockNode({ nodeId: n.id }));
-        }
+        topLevel.forEach(n => conn.reducers.lockNode({ nodeId: n.id }));
       },
     };
 
@@ -408,7 +365,6 @@ function CanvasInner({
       icon: '📌',
       shortcut: '⌘V',
       onClick: () => {
-        if (!conn) return;
         const clipboard = pasteNodes();
         if (!clipboard.length) return;
 
@@ -463,7 +419,7 @@ function CanvasInner({
 
         // Unlock previously selected nodes, select and lock pasted root nodes
         selArray.forEach(id => conn.reducers.unlockNode({ nodeId: id }));
-        setSelectedIds(new Set(pastedRootIds));
+        multiSelectNodes(pastedRootIds);
         pastedRootIds.forEach(id => conn.reducers.lockNode({ nodeId: id }));
       },
     };
@@ -485,18 +441,11 @@ function CanvasInner({
         disabled: count === 0,
         onClick: () => {
           selArray.forEach(id => conn?.reducers.deleteNodeCascade({ nodeId: id }));
-          setSelectedIds(new Set());
+          selectNode(null);
         },
       },
     ];
-  }, [conn, selectedIds, flatNodes, pageId, tenantId]);
-
-  if (!conn) return (
-    <div className="canvas-loading">
-      <div className="spinner" />
-      <p>Connecting to SpacetimeDB...</p>
-    </div>
-  );
+  }, [conn, selectedIds, flatNodes, pageId, tenantId, selectNode, multiSelectNodes]);
 
   return (
     <DndContext
@@ -510,7 +459,7 @@ function CanvasInner({
           <LeftPanel
             flatNodes={[...flatNodes]}
             selectedIds={selectedIds}
-            onSelect={handleSelect}
+            onSelect={selectNode}
             conn={conn}
             pageId={pageId}
             tenantId={tenantId}
@@ -523,9 +472,9 @@ function CanvasInner({
               prompt: activeAiOp.prompt,
             }} />}
             <Canvas
-              tree={tree} cursors={[...cursors]}
-              selectedIds={selectedIds} onSelect={handleSelect}
-              onMultiSelect={handleMultiSelect}
+              tree={tree} cursors={cursors}
+              selectedIds={selectedIds} onSelect={selectNode}
+              onMultiSelect={multiSelectNodes}
               onContextMenu={handleContextMenu}
             />
             <AIBar
@@ -553,6 +502,34 @@ function CanvasInner({
         />
       )}
     </DndContext>
+  );
+}
+
+// ── CanvasInner — thin wrapper: gets conn + STDB data, wraps with context ──────
+function CanvasInner({
+  pageId, tenantId, tenantName,
+}: { pageId: string; tenantId: string; tenantName: string }) {
+  const stdb = useSpacetimeDB() as any;
+  const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
+
+  const [flatNodes] = useTable(tables.canvas_node);
+  const [cursors]   = useTable(tables.active_cursor);
+  const [aiOps]     = useTable(tables.ai_operation);
+
+  if (!conn) return (
+    <div className="canvas-loading">
+      <div className="spinner" />
+      <p>Connecting to SpacetimeDB...</p>
+    </div>
+  );
+
+  return (
+    <CanvasContextProvider conn={conn} stdbNodes={flatNodes} pageId={pageId} tenantId={tenantId}>
+      <CanvasUI
+        pageId={pageId} tenantId={tenantId} tenantName={tenantName}
+        cursors={[...cursors]} aiOps={[...aiOps]} conn={conn}
+      />
+    </CanvasContextProvider>
   );
 }
 
