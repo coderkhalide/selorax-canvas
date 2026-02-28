@@ -48,7 +48,7 @@ export function PagesGrid({ tenantId }: { tenantId: string }) {
         </div>
       )}
       {error && <div className="text-center py-20 text-red-500 text-sm">{error}</div>}
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && pages.length === 0 && (
         <div className="text-center py-20">
           <p className="text-gray-400 text-sm mb-4">No pages yet</p>
           <button
@@ -59,7 +59,12 @@ export function PagesGrid({ tenantId }: { tenantId: string }) {
           </button>
         </div>
       )}
-      {!loading && filtered.length > 0 && (
+      {!loading && !error && pages.length > 0 && filtered.length === 0 && (
+        <div className="text-center py-20">
+          <p className="text-gray-400 text-sm">No pages match your search</p>
+        </div>
+      )}
+      {!loading && !error && filtered.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filtered.map((page) => (
             <PageCard key={page.id} page={page} />

@@ -4,7 +4,7 @@ import { X, Loader2 } from "lucide-react";
 
 interface Props {
   onClose: () => void;
-  onCreate: (name: string) => Promise<void>;
+  onCreate: (name: string) => Promise<unknown>;
 }
 
 export function NewFunnelModal({ onClose, onCreate }: Props) {

@@ -4,7 +4,7 @@ export interface PageSummary {
   id: string;
   title: string;
   slug: string;
-  type: string;
+  pageType: string;
 }
 
 export function usePageList(tenantId: string) {

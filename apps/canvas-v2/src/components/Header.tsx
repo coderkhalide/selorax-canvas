@@ -25,7 +25,9 @@ import {
   Terminal,
   ChevronDown,
   FileText,
+  Home,
 } from "lucide-react";
+import Link from "next/link";
 import { useFunnel } from "../context/FunnelContext";
 import { HistoryPanel } from "./HistoryPanel";
 import { DeveloperModal } from "./DeveloperModal";
@@ -480,6 +482,15 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white z-10">
       <div className="flex items-center gap-2">
+        {pageId && (
+          <Link
+            href="/"
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700 transition-colors mr-1"
+            title="Back to Dashboard"
+          >
+            <Home className="w-4 h-4" />
+          </Link>
+        )}
         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
           <span className="font-bold text-white">S</span>
         </div>
@@ -535,7 +546,7 @@ export const Header: React.FC<HeaderProps> = ({
                         {page.title || page.slug}
                       </div>
                       <div className="text-xs text-gray-400 capitalize mt-0.5">
-                        {page.type?.replace(/_/g, " ")}
+                        {page.pageType?.replace(/_/g, " ")}
                       </div>
                     </div>
                   </button>

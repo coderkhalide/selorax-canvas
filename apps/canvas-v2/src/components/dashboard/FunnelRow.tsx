@@ -50,8 +50,8 @@ export function FunnelRow({ funnel, onAddStep }: Props) {
         <div className="border-t border-gray-100 px-5 py-4">
           {steps.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap mb-4">
-              {steps
-                .sort((a, b) => a.order - b.order)
+              {[...steps]
+                .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0))
                 .map((step, idx) => (
                   <div key={step.id} className="flex items-center gap-2">
                     <Link
@@ -61,7 +61,7 @@ export function FunnelRow({ funnel, onAddStep }: Props) {
                       <span className="w-4 h-4 bg-blue-200 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-700">
                         {idx + 1}
                       </span>
-                      {step.title ?? step.page?.title ?? step.page?.slug ?? "Untitled"}
+                      {step.name ?? step.page?.title ?? step.page?.slug ?? "Untitled"}
                     </Link>
                     {idx < steps.length - 1 && (
                       <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />

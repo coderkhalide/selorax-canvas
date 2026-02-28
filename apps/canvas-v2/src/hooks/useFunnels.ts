@@ -3,17 +3,17 @@ import { useState, useEffect, useCallback } from "react";
 
 export interface FunnelStep {
   id: string;
-  order: number;
-  title: string | null;
+  stepOrder: number;
+  name: string | null;
   pageId: string;
-  page?: { id: string; title: string | null; slug: string; type: string };
+  page?: { id: string; title: string | null; slug: string; pageType: string };
 }
 
 export interface Funnel {
   id: string;
   name: string;
   status: string;
-  updatedAt: string;
+  createdAt: string;
   steps?: FunnelStep[];
 }
 
@@ -33,7 +33,7 @@ export function useFunnels(tenantId: string) {
       });
       if (!res.ok) throw new Error(`Failed to fetch funnels: ${res.status}`);
       const data = await res.json();
-      setFunnels(data.funnels ?? []);
+      setFunnels(Array.isArray(data) ? data : (data.funnels ?? []));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -51,8 +51,7 @@ export function useFunnels(tenantId: string) {
         body: JSON.stringify({ name }),
       });
       if (!res.ok) throw new Error(`Failed to create funnel: ${res.status}`);
-      const data = await res.json();
-      const newFunnel: Funnel = data.funnel;
+      const newFunnel: Funnel = await res.json();
       setFunnels((prev) => [newFunnel, ...prev]);
       return newFunnel;
     } catch (e) {
@@ -63,7 +62,7 @@ export function useFunnels(tenantId: string) {
 
   const addStep = useCallback(async (funnelId: string, title: string, pageType: string): Promise<FunnelStep | null> => {
     try {
-      const res = await fetch(`${backendUrl}/api/funnels/${funnelId}/steps`, {
+      const res = await fetch(`${backendUrl}/api/funnels/${funnelId}/steps/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-tenant-id": tenantId },
         body: JSON.stringify({ title, pageType }),
@@ -71,7 +70,7 @@ export function useFunnels(tenantId: string) {
       if (!res.ok) throw new Error(`Failed to add step: ${res.status}`);
       const data = await res.json();
       await fetchFunnels();
-      return data.step;
+      return data.step ?? data;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
       return null;

@@ -18,9 +18,9 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export function PageCard({ page }: { page: Page }) {
-  const label = TYPE_LABELS[page.type] ?? page.type;
-  const color = TYPE_COLORS[page.type] ?? "bg-gray-100 text-gray-700";
-  const edited = new Date(page.updatedAt).toLocaleDateString("en-US", {
+  const label = TYPE_LABELS[page.pageType] ?? page.pageType;
+  const color = TYPE_COLORS[page.pageType] ?? "bg-gray-100 text-gray-700";
+  const edited = new Date(page.createdAt).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
 

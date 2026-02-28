@@ -94,6 +94,47 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/funnels/:id/steps/new — create page + add as step in one transaction
+router.post('/:id/steps/new', async (req, res) => {
+  try {
+    const tenant = getTenant(req);
+    const funnel = await prisma.funnel.findFirst({
+      where: { id: req.params.id, tenantId: tenant.id },
+      include: { steps: true },
+    });
+    if (!funnel) return res.status(404).json({ error: 'Not found' });
+
+    const { title, pageType = 'funnel_step' } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+
+    const baseSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const slug = `${baseSlug}-${Date.now()}`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const page = await tx.page.create({
+        data: { tenantId: tenant.id, title, slug, pageType },
+      });
+      const step = await tx.funnelStep.create({
+        data: {
+          funnelId: req.params.id,
+          pageId: page.id,
+          stepOrder: funnel.steps.length,
+          stepType: 'landing',
+          name: title,
+          onSuccess: JSON.stringify({ action: 'next' }),
+        },
+        include: { page: true },
+      });
+      return { page, step };
+    });
+
+    res.status(201).json(result);
+  } catch (err: any) {
+    console.error('[funnels] steps/new error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/funnels/:id/steps — add a step to an existing funnel
 router.post('/:id/steps', async (req, res) => {
   try {

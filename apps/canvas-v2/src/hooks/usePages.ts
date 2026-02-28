@@ -5,8 +5,8 @@ export interface Page {
   id: string;
   title: string | null;
   slug: string;
-  type: string;
-  updatedAt: string;
+  pageType: string;
+  createdAt: string;
   publishedVersionId: string | null;
 }
 
@@ -26,7 +26,7 @@ export function usePages(tenantId: string) {
       });
       if (!res.ok) throw new Error(`Failed to fetch pages: ${res.status}`);
       const data = await res.json();
-      setPages(data.pages ?? []);
+      setPages(Array.isArray(data) ? data : (data.pages ?? []));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -36,17 +36,16 @@ export function usePages(tenantId: string) {
 
   useEffect(() => { fetchPages(); }, [fetchPages]);
 
-  const createPage = useCallback(async (title: string, type: string): Promise<Page | null> => {
+  const createPage = useCallback(async (title: string, pageType: string): Promise<Page | null> => {
     try {
       const slug = title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       const res = await fetch(`${backendUrl}/api/pages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-tenant-id": tenantId },
-        body: JSON.stringify({ title, type, slug: `${slug}-${Date.now()}` }),
+        body: JSON.stringify({ title, pageType, slug: `${slug}-${Date.now()}` }),
       });
       if (!res.ok) throw new Error(`Failed to create page: ${res.status}`);
-      const data = await res.json();
-      const newPage: Page = data.page;
+      const newPage: Page = await res.json();
       setPages((prev) => [newPage, ...prev]);
       return newPage;
     } catch (e) {
