@@ -4,15 +4,7 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
 
-  // Inject tenant header for canvas editor routes (MVP mode)
-  if (url.pathname.startsWith("/editor")) {
-    const tenantId = process.env.TENANT_ID ?? "store_001";
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-tenant-id", tenantId);
-    return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-
-  // Only run cookie logic on root path
+  // On root path, handle legacy store_id/access_token redirect first
   if (url.pathname === "/") {
     const storeId = url.searchParams.get("store_id");
     const accessToken = url.searchParams.get("access_token");
@@ -27,6 +19,14 @@ export function middleware(request: NextRequest) {
       if (slug) response.cookies.set("slug", slug);
       return response;
     }
+  }
+
+  // Inject tenant header for canvas editor routes and dashboard (MVP mode)
+  if (url.pathname.startsWith("/editor") || url.pathname === "/") {
+    const tenantId = process.env.TENANT_ID ?? "store_001";
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-tenant-id", tenantId);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   return NextResponse.next();
