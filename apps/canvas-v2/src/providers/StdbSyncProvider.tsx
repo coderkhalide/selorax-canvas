@@ -26,14 +26,20 @@ function StdbSyncInner({
   tenantId: string;
 }) {
   const { elements, setElements } = useFunnel();
-  const stdb = useSpacetimeDB() as unknown as DbConnection | null;
-  const conn = (stdb as unknown as { getConnection?: () => DbConnection | null })?.getConnection?.() ?? (stdb as unknown as DbConnection | null);
+  const stdb = useSpacetimeDB() as any;
+  const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
   const [flatNodes] = useTable(tables.canvas_node);
 
   const initialized = useRef(false);
   const prevElementsRef = useRef<FunnelElement[]>([]);
   const dirtyIds = useRef<Set<string>>(new Set());
   const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const connRef = useRef<DbConnection | null>(null);
+
+  // Keep connRef in sync with conn without triggering re-renders
+  useEffect(() => {
+    connRef.current = conn;
+  }, [conn]);
 
   // Initial load: flat STDB nodes → FunnelElement tree → context
   useEffect(() => {
@@ -84,7 +90,7 @@ function StdbSyncInner({
       const prev = prevElementsRef.current;
       clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => {
-        if (!conn) return;
+        if (!connRef.current) return;
         const ops = computeOps(prev, nextElements, pageId, tenantId);
         if (ops.length === 0) return;
 
@@ -97,7 +103,7 @@ function StdbSyncInner({
               // id, pageId, tenantId, nodeType, parentId (option<string>),
               // order, styles, props, settings, childrenIds, componentUrl (option<string>),
               // componentId (option<string>), componentVersion (option<string>)
-              (conn as DbConnection).reducers.insertNode({
+              connRef.current.reducers.insertNode({
                 id: op.node.id,
                 pageId: op.node.pageId,
                 tenantId: op.node.tenantId,
@@ -114,13 +120,13 @@ function StdbSyncInner({
               });
             } else if (op.type === "update_styles" && op.styles !== undefined) {
               // updateNodeStyles reducer signature: { nodeId, styles }
-              (conn as DbConnection).reducers.updateNodeStyles({
+              connRef.current.reducers.updateNodeStyles({
                 nodeId: op.nodeId,
                 styles: op.styles,
               });
             } else if (op.type === "update_props" && op.props !== undefined) {
               // updateNodeProps reducer signature: { nodeId, props }
-              (conn as DbConnection).reducers.updateNodeProps({
+              connRef.current.reducers.updateNodeProps({
                 nodeId: op.nodeId,
                 props: op.props,
               });
@@ -129,20 +135,20 @@ function StdbSyncInner({
               op.settings !== undefined
             ) {
               // updateNodeSettings reducer signature: { nodeId, settings }
-              (conn as DbConnection).reducers.updateNodeSettings({
+              connRef.current.reducers.updateNodeSettings({
                 nodeId: op.nodeId,
                 settings: op.settings,
               });
             } else if (op.type === "move") {
               // moveNode reducer signature: { nodeId, newParentId, newOrder }
-              (conn as DbConnection).reducers.moveNode({
+              connRef.current.reducers.moveNode({
                 nodeId: op.nodeId,
                 newParentId: op.newParentId ?? "",
                 newOrder: op.newOrder ?? "",
               });
             } else if (op.type === "delete") {
               // deleteNodeCascade reducer signature: { nodeId }
-              (conn as DbConnection).reducers.deleteNodeCascade({
+              connRef.current.reducers.deleteNodeCascade({
                 nodeId: op.nodeId,
               });
             }
@@ -155,7 +161,7 @@ function StdbSyncInner({
         dirtyIds.current.clear();
       }, 100);
     },
-    [conn, pageId, tenantId]
+    [pageId, tenantId]
   );
 
   // Watch elements for local changes
