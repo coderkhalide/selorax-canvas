@@ -29,6 +29,7 @@ import { setRuntimeApiKey } from "../services/runtimeApiKey";
 interface FunnelContextType {
   elements: FunnelElement[];
   setElements: React.Dispatch<React.SetStateAction<FunnelElement[]>>;
+  setRemoteElements: (elements: FunnelElement[]) => void;
   mergeRemoteNode: (nodeId: string, operation: "upsert" | "delete", element?: FunnelElement) => void;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
@@ -1341,6 +1342,12 @@ export const FunnelProvider: React.FC<{ children: ReactNode }> = ({
     [history],
   );
 
+  // Remote full-tree replace: used when a new remote node arrives and we need to
+  // rebuild the entire tree from the flat STDB snapshot (avoids root-placement bug).
+  const setRemoteElements = useCallback((newElements: FunnelElement[]) => {
+    setElements(newElements);
+  }, []);
+
   // Remote merge: apply STDB changes from AI / other users without triggering history
   const mergeRemoteNode = useCallback(
     (nodeId: string, operation: "upsert" | "delete", element?: FunnelElement) => {
@@ -1355,6 +1362,7 @@ export const FunnelProvider: React.FC<{ children: ReactNode }> = ({
             return updateElementById(prev, nodeId, element);
           }
           // New remote element — append to root (tree re-sorts on next full load)
+          // NOTE: callers should use setRemoteElements for new nodes instead.
           return [...prev, element];
         });
       }
@@ -1367,6 +1375,7 @@ export const FunnelProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         elements,
         setElements,
+        setRemoteElements,
         mergeRemoteNode,
         selectedId,
         setSelectedId,

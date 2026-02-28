@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { DbConnection, tables } from "@/module_bindings";
 import {
   SpacetimeDBProvider,
@@ -27,12 +27,14 @@ function StdbSyncInner({
   pageId: string;
   tenantId: string;
 }) {
-  const { elements, setElements, mergeRemoteNode } = useFunnel();
+  const { elements, setElements, setRemoteElements, mergeRemoteNode } = useFunnel();
   const stdb = useSpacetimeDB() as any;
   const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
   const [flatNodes] = useTable(tables.canvas_node);
 
   const initialized = useRef(false);
+  // Separate ready flag for remote-merge effect so it only starts after initial seed completes
+  const remoteMergeReady = useRef(false);
   const prevElementsRef = useRef<FunnelElement[]>([]);
   const dirtyIds = useRef<Set<string>>(new Set());
   const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -40,20 +42,21 @@ function StdbSyncInner({
   // Track previous STDB node snapshots to detect remote changes
   const prevNodesRef = useRef<Map<string, RawCanvasNode>>(new Map());
   // Track local user's identity so LiveCursors can filter out self
-  const currentUserIdRef = useRef<string | undefined>(undefined);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   // Keep connRef in sync with conn without triggering re-renders
-  // Also capture the local user's identity for cursor filtering
+  // Also capture the local user's identity for cursor filtering (state so LiveCursors re-renders)
   useEffect(() => {
     connRef.current = conn;
     if (conn) {
-      currentUserIdRef.current = (conn as any).identity?.toHexString?.();
+      setCurrentUserId((conn as any).identity?.toHexString?.());
     }
   }, [conn]);
 
   // Reset initialization when pageId changes (user navigated to a different page)
   useEffect(() => {
     initialized.current = false;
+    remoteMergeReady.current = false;
     prevElementsRef.current = [];
     dirtyIds.current.clear();
     prevNodesRef.current = new Map();
@@ -73,11 +76,15 @@ function StdbSyncInner({
     // Seed prevNodesRef so the remote-merge effect doesn't re-process the initial load
     prevNodesRef.current = new Map(filtered.map((n) => [n.id, n]));
     setElements(tree);
+    // Signal that remote-merge effect is now safe to run (Bug 2 fix)
+    remoteMergeReady.current = true;
   }, [flatNodes, setElements, pageId, tenantId]);
 
   // Remote merge: STDB changes from AI / other users → FunnelContext
   useEffect(() => {
-    if (!initialized.current) return;
+    // Bug 2 fix: guard on remoteMergeReady (set after initial seed) instead of initialized,
+    // so we don't double-apply nodes that were already seeded in the initial-load effect.
+    if (!remoteMergeReady.current) return;
 
     const filtered = [...flatNodes].filter(
       (n) => (n as any).pageId === pageId && (n as any).tenantId === tenantId
@@ -87,22 +94,37 @@ function StdbSyncInner({
     const prevMap = prevNodesRef.current;
 
     // Detect upserts: new nodes or nodes changed by remote (AI / other users)
+    let hasNewNode = false;
     for (const [id, node] of currentMap) {
       if (dirtyIds.current.has(id)) continue; // local edit — skip
       const prev = prevMap.get(id);
+      const isNew = !prev;
       const changed =
-        !prev ||
+        isNew ||
         prev.styles !== node.styles ||
         prev.props !== node.props ||
         prev.settings !== node.settings ||
         prev.parentId !== node.parentId ||
         prev.order !== node.order;
       if (changed) {
-        const element = canvasNodeToElement(node);
-        if (element) {
-          mergeRemoteNode(id, "upsert", element);
+        if (isNew) {
+          // Bug 1 fix: new remote node — rebuild full tree from flat snapshot so
+          // parent-child nesting is correct instead of appending to root.
+          hasNewNode = true;
+        } else {
+          const element = canvasNodeToElement(node);
+          if (element) {
+            mergeRemoteNode(id, "upsert", element);
+          }
         }
       }
+    }
+
+    if (hasNewNode) {
+      // Rebuild the full tree from the current flat snapshot to place all new
+      // nodes under their correct parents (Bug 1 fix).
+      const tree = flatNodesToTree(filtered);
+      setRemoteElements(tree);
     }
 
     // Detect deletes: nodes removed by remote
@@ -113,7 +135,7 @@ function StdbSyncInner({
     }
 
     prevNodesRef.current = currentMap;
-  }, [flatNodes, pageId, tenantId, mergeRemoteNode]);
+  }, [flatNodes, pageId, tenantId, mergeRemoteNode, setRemoteElements]);
 
   // Debounced sync: local changes → STDB reducers
   const scheduleSync = useCallback(
@@ -246,11 +268,11 @@ function StdbSyncInner({
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      // Remove cursor on unmount (cleanup)
+      // Remove cursor on unmount (cleanup) — must pass pageId + tenantId to identify the record
       const conn = connRef.current;
       if (conn) {
         try {
-          conn.reducers.removeCursor({});
+          conn.reducers.removeCursor({ pageId, tenantId });
         } catch {
           // Ignore errors on cleanup
         }
@@ -262,7 +284,7 @@ function StdbSyncInner({
     <LiveCursors
       pageId={pageId}
       tenantId={tenantId}
-      currentUserId={currentUserIdRef.current}
+      currentUserId={currentUserId}
     />
   );
 }
