@@ -94,4 +94,75 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/funnels/:id/steps — add a step to an existing funnel
+router.post('/:id/steps', async (req, res) => {
+  try {
+    const tenant = getTenant(req);
+    const funnel = await prisma.funnel.findFirst({
+      where: { id: req.params.id, tenantId: tenant.id },
+      include: { steps: true },
+    });
+    if (!funnel) return res.status(404).json({ error: 'Not found' });
+
+    const { pageId, stepType, name, stepOrder, onSuccess, onSkip } = req.body;
+    if (!pageId) return res.status(400).json({ error: 'pageId is required' });
+    const step = await prisma.funnelStep.create({
+      data: {
+        funnelId:  req.params.id,
+        pageId,
+        stepOrder: stepOrder ?? funnel.steps.length,
+        stepType:  stepType ?? 'landing',
+        name:      name ?? `Step ${funnel.steps.length + 1}`,
+        onSuccess: JSON.stringify(onSuccess ?? { action: 'next' }),
+        onSkip:    onSkip ? JSON.stringify(onSkip) : null,
+      },
+    });
+    res.status(201).json(step);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/funnels/:id/steps/:stepId — update a step
+router.patch('/:id/steps/:stepId', async (req, res) => {
+  try {
+    const tenant = getTenant(req);
+    const funnel = await prisma.funnel.findFirst({
+      where: { id: req.params.id, tenantId: tenant.id },
+    });
+    if (!funnel) return res.status(404).json({ error: 'Not found' });
+
+    const { pageId, stepType, name, stepOrder, onSuccess, onSkip } = req.body;
+    const step = await prisma.funnelStep.update({
+      where: { id: req.params.stepId, funnelId: req.params.id },
+      data: {
+        ...(pageId    !== undefined && { pageId }),
+        ...(stepType  !== undefined && { stepType }),
+        ...(name      !== undefined && { name }),
+        ...(stepOrder !== undefined && { stepOrder }),
+        ...(onSuccess !== undefined && { onSuccess: JSON.stringify(onSuccess) }),
+        ...(onSkip    !== undefined && { onSkip: JSON.stringify(onSkip) }),
+      },
+    });
+    res.json(step);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/funnels/:id/steps/:stepId — remove a step
+router.delete('/:id/steps/:stepId', async (req, res) => {
+  try {
+    const tenant = getTenant(req);
+    const funnel = await prisma.funnel.findFirst({
+      where: { id: req.params.id, tenantId: tenant.id },
+    });
+    if (!funnel) return res.status(404).json({ error: 'Not found' });
+    await prisma.funnelStep.delete({ where: { id: req.params.stepId, funnelId: req.params.id } });
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

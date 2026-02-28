@@ -40,6 +40,11 @@ const { prismaMock } = vi.hoisted(() => {
       update:    vi.fn(),
       delete:    vi.fn(),
     },
+    funnelStep: {
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
   };
   return { prismaMock };
 });
@@ -207,5 +212,75 @@ describe('DELETE /api/funnels/:id', () => {
 
     // delete must NOT be called — guard must have short-circuited
     expect(prismaMock.funnel.delete).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Funnel Step CRUD
+// ---------------------------------------------------------------------------
+describe('Funnel Step CRUD', () => {
+  it('POST /api/funnels/:id/steps — adds step and returns 201', async () => {
+    prismaMock.funnel.findFirst.mockResolvedValue({
+      id: 'f1', tenantId: 't1', name: 'Test', goal: null,
+      status: 'draft', aiGenerated: false, aiPrompt: null,
+      createdAt: new Date(), publishedAt: null, steps: [],
+    } as any);
+    prismaMock.funnelStep.create.mockResolvedValue({
+      id: 'step-1', funnelId: 'f1', pageId: 'page-1',
+      stepOrder: 0, stepType: 'landing', name: 'Step 1',
+      onSuccess: '{"action":"next"}', onSkip: null,
+    } as any);
+
+    const res = await request(app)
+      .post('/api/funnels/f1/steps')
+      .set('x-tenant-id', 't1')
+      .send({ pageId: 'page-1', stepType: 'landing', name: 'Step 1' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('step-1');
+  });
+
+  it('PATCH /api/funnels/:id/steps/:stepId — updates step', async () => {
+    prismaMock.funnel.findFirst.mockResolvedValue({
+      id: 'f1', tenantId: 't1', name: 'Test', goal: null,
+      status: 'draft', aiGenerated: false, aiPrompt: null,
+      createdAt: new Date(), publishedAt: null,
+    } as any);
+    prismaMock.funnelStep.update.mockResolvedValue({
+      id: 'step-1', funnelId: 'f1', pageId: 'page-2',
+      stepOrder: 0, stepType: 'checkout', name: 'Checkout',
+      onSuccess: '{"action":"next"}', onSkip: null,
+    } as any);
+
+    const res = await request(app)
+      .patch('/api/funnels/f1/steps/step-1')
+      .set('x-tenant-id', 't1')
+      .send({ stepType: 'checkout', name: 'Checkout', pageId: 'page-2' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.stepType).toBe('checkout');
+  });
+
+  it('DELETE /api/funnels/:id/steps/:stepId — returns 404 for wrong tenant', async () => {
+    prismaMock.funnel.findFirst.mockResolvedValue(null);
+
+    const res = await request(app)
+      .delete('/api/funnels/f1/steps/step-1')
+      .set('x-tenant-id', 'wrong-tenant');
+
+    expect(res.status).toBe(404);
+    expect(prismaMock.funnelStep.delete).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /api/funnels/:id/steps/:stepId — returns 404 for wrong tenant', async () => {
+    prismaMock.funnel.findFirst.mockResolvedValue(null);
+
+    const res = await request(app)
+      .patch('/api/funnels/f1/steps/step-1')
+      .set('x-tenant-id', 'wrong-tenant')
+      .send({ stepType: 'checkout' });
+
+    expect(res.status).toBe(404);
+    expect(prismaMock.funnelStep.update).not.toHaveBeenCalled();
   });
 });
