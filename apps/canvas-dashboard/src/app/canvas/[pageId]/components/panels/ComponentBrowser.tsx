@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useDraggable }        from '@dnd-kit/core';
+import { useCanvas }           from '@/context/CanvasContext';
 
 interface Component {
   id:             string;
@@ -12,12 +13,12 @@ interface Component {
 }
 
 interface ComponentBrowserProps {
-  tenantId:   string;
-  pageId:     string;
-  conn:       any;
+  tenantId: string;
+  pageId:   string;
 }
 
-export default function ComponentBrowser({ tenantId, pageId, conn }: ComponentBrowserProps) {
+export default function ComponentBrowser({ tenantId, pageId }: ComponentBrowserProps) {
+  const { insertNode }         = useCanvas();
   const [components, setComponents] = useState<Component[]>([]);
   const [search,     setSearch]     = useState('');
   const [loading,    setLoading]    = useState(false);
@@ -45,34 +46,30 @@ export default function ComponentBrowser({ tenantId, pageId, conn }: ComponentBr
   const library = filtered.filter(c => c.isPublic && c.tenantId === null);
 
   const inject = (comp: Component) => {
-    if (!conn) return;
-    conn.reducers.insertNode({
-      id:               crypto.randomUUID(),
+    insertNode({
       pageId,
       tenantId,
       parentId:         null,
       nodeType:         'component',
       order:            'z' + Date.now().toString(36),
-      styles:           null,
-      props:            null,
-      settings:         null,
-      componentUrl:     { some: comp.currentUrl },
-      componentVersion: { some: comp.currentVersion },
+      styles:           '{}',
+      props:            '{}',
+      settings:         '{}',
+      componentUrl:     comp.currentUrl,
+      componentVersion: comp.currentVersion,
       componentId:      comp.id,
     });
   };
 
   return (
     <div className="component-browser">
-      <div className="component-search">
-        <input
-          type="text"
-          placeholder="Search components..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="component-search-input"
-        />
-      </div>
+      <input
+        type="text"
+        className="component-search"
+        placeholder="Search components..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
 
       {loading && <p className="browser-loading">Loading...</p>}
 

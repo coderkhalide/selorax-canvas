@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useCanvas } from '@/context/CanvasContext';
 import { DropZoneLine } from './DropZoneIndicator';
@@ -108,21 +109,77 @@ export default function CanvasNode({ node, depth, dropInfo }: CanvasNodeProps) {
 
   if (nodeType === 'component') {
     return (
-      <div ref={setRef} style={{ ...wrapperStyle, minHeight: 40, background: '#f3f4f6',
-        borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}
+      <div ref={setRef} style={{ ...wrapperStyle, position: 'relative' }}
         data-node-id={node.id} onClick={handleClick}>
         {isDropTarget && dropInfo?.position === 'before' && <DropZoneLine position="before" />}
         {DragHandle}
         {isSelected && !isDragging && (
           <FloatingToolbar nodeId={node.id} nodeName={getNodeLabel(node)} />
         )}
-        <span style={{ fontSize: 11, color: '#6B7280' }}>&#128230; {node.componentId ?? 'Component'}</span>
+        <ComponentRenderer node={node} />
         {isDropTarget && dropInfo?.position === 'after' && <DropZoneLine position="after" />}
       </div>
     );
   }
 
   return null;
+}
+
+function ComponentRenderer({ node }: { node: any }) {
+  const [Comp, setComp]   = useState<React.ComponentType<any> | null>(null);
+  const [name, setName]   = useState<string>('');
+  const [error, setError] = useState(false);
+
+  const settings = (() => { try { return JSON.parse(node.settings ?? '{}'); } catch { return {}; } })();
+  const props    = (() => { try { return JSON.parse(node.props    ?? '{}'); } catch { return {}; } })();
+
+  // Fetch component name from backend
+  useEffect(() => {
+    if (props.componentName) { setName(props.componentName); return; }
+    if (!node.componentId) return;
+    const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+    fetch(`${backend}/api/components/${node.componentId}`, {
+      headers: { 'x-tenant-id': node.tenantId ?? '' },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.name) setName(data.name); })
+      .catch(() => {});
+  }, [node.componentId]);
+
+  // Dynamically import ESM component
+  useEffect(() => {
+    if (!node.componentUrl) return;
+    setComp(null); setError(false);
+    import(/* webpackIgnore: true */ node.componentUrl)
+      .then((mod: any) => {
+        const C = mod.default ?? mod;
+        if (typeof C === 'function') setComp(() => C);
+        else setError(true);
+      })
+      .catch(() => setError(true));
+  }, [node.componentUrl]);
+
+  if (Comp) {
+    return <Comp {...settings} {...props} />;
+  }
+
+  return (
+    <div style={{
+      minHeight: 64, background: 'var(--brand-navy-light)',
+      border: '1px dashed var(--brand-navy)', borderRadius: 6,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', gap: 4, padding: '12px 16px',
+    }}>
+      <span style={{ fontSize: 20 }}>🧩</span>
+      <span style={{ fontSize: 12, color: 'var(--brand-navy)', fontWeight: 600 }}>
+        {name || (node.componentId ? node.componentId.slice(0, 8) + '…' : 'Component')}
+      </span>
+      {error && <span style={{ fontSize: 10, color: '#EF4444' }}>Failed to load</span>}
+      {!error && node.componentUrl && !Comp && (
+        <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Loading…</span>
+      )}
+    </div>
+  );
 }
 
 function parseStyles(s: any): React.CSSProperties {

@@ -493,7 +493,7 @@ function CanvasUI({
       <div className="canvas-layout">
         <Toolbar conn={conn} pageId={pageId} tenantId={tenantId} tenantName={tenantName} connected={conn !== null} />
         <div className="canvas-body">
-          <LeftPanel pageId={pageId} tenantId={tenantId} conn={conn} />
+          <LeftPanel pageId={pageId} tenantId={tenantId} />
           <div className="canvas-area" onMouseMove={handleMouseMove}>
             {activeAiOp && <AIStatusBar operation={{
               status: activeAiOp.status,

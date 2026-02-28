@@ -7,8 +7,8 @@ import FunnelBuilder    from './FunnelBuilder';
 
 type Tab = 'elements' | 'layers' | 'components' | 'funnels';
 
-export default function LeftPanel({ pageId, tenantId, conn }: {
-  pageId: string; tenantId: string; conn: any;
+export default function LeftPanel({ pageId, tenantId }: {
+  pageId: string; tenantId: string;
 }) {
   const [tab, setTab] = useState<Tab>('elements');
 
@@ -24,7 +24,7 @@ export default function LeftPanel({ pageId, tenantId, conn }: {
       <div className="panel-tab-body">
         {tab === 'elements'    && <ElementsPanel pageId={pageId} tenantId={tenantId} />}
         {tab === 'layers'      && <LayersTree />}
-        {tab === 'components'  && <ComponentBrowser tenantId={tenantId} pageId={pageId} conn={conn} />}
+        {tab === 'components'  && <ComponentBrowser tenantId={tenantId} pageId={pageId} />}
         {tab === 'funnels'     && (
           <FunnelBuilder
             tenantId={tenantId}

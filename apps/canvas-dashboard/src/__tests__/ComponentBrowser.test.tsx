@@ -13,6 +13,12 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
+// Mock CanvasContext — ComponentBrowser now uses useCanvas() for insertNode
+const mockInsertNode = vi.fn().mockReturnValue('new-node-id');
+vi.mock('@/context/CanvasContext', () => ({
+  useCanvas: () => ({ insertNode: mockInsertNode }),
+}));
+
 const mockComponents = [
   { id: 'c1', name: 'Hero Banner',  currentVersion: '1.0.0', currentUrl: 'https://cdn.r2.dev/c1/1.0.0.js', isPublic: false, tenantId: 'tenant-a' },
   { id: 'c2', name: 'Hero Card',    currentVersion: '2.0.0', currentUrl: 'https://cdn.r2.dev/c2/2.0.0.js', isPublic: false, tenantId: 'tenant-a' },
@@ -24,10 +30,11 @@ beforeEach(() => {
     json: () => Promise.resolve(mockComponents),
   }));
   vi.stubEnv('NEXT_PUBLIC_BACKEND_URL', 'http://localhost:3001');
+  mockInsertNode.mockClear();
 });
 
 describe('ComponentBrowser', () => {
-  const defaultProps = { tenantId: 'tenant-a', pageId: 'page-1', conn: null };
+  const defaultProps = { tenantId: 'tenant-a', pageId: 'page-1' };
 
   it('shows loading indicator while fetching', async () => {
     // Use a never-resolving promise to keep fetch "in flight"
@@ -79,19 +86,20 @@ describe('ComponentBrowser', () => {
     expect(screen.queryByText('Global Footer')).not.toBeInTheDocument();
   });
 
-  it('calls conn.reducers.insertNode on click with component data', async () => {
-    const mockConn = { reducers: { insertNode: vi.fn() } };
-    render(<ComponentBrowser tenantId="tenant-a" pageId="page-1" conn={mockConn} />);
+  it('calls insertNode via useCanvas on click with component data', async () => {
+    render(<ComponentBrowser tenantId="tenant-a" pageId="page-1" />);
     await waitFor(() => screen.getByText('Hero Banner'));
 
     fireEvent.click(screen.getByText('Hero Banner').closest('.component-card')!);
 
-    expect(mockConn.reducers.insertNode).toHaveBeenCalledWith(
+    expect(mockInsertNode).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId:     'tenant-a',
-        pageId:       'page-1',
-        nodeType:     'component',
-        componentUrl: { some: 'https://cdn.r2.dev/c1/1.0.0.js' },
+        tenantId:         'tenant-a',
+        pageId:           'page-1',
+        nodeType:         'component',
+        componentUrl:     'https://cdn.r2.dev/c1/1.0.0.js',
+        componentVersion: '1.0.0',
+        componentId:      'c1',
       }),
     );
   });
