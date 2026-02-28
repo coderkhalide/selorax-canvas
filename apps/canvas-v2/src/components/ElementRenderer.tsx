@@ -776,7 +776,7 @@ export const ElementRenderer: React.FC<{
 
     // Remote ESM path — load component from CDN URL at runtime
     if (componentUrl) {
-      const RemoteComp = getRemoteComponent(componentUrl);
+      const RemoteComp = getRemoteComponent(componentUrl) as React.ComponentType<any>;
       return (
         <div
           className={`relative group w-full ${element.className || ""}`}
