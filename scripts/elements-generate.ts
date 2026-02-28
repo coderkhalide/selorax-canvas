@@ -57,7 +57,7 @@ const ELEMENTS: Record<string, {
   },
   gallery: {
     importPath: './custom-registry/Custom-Gallery',
-    componentExport: 'CustomGalleryComponent',
+    componentExport: 'GalleryComponent',
     aliases: ['gallery', 'image_gallery', 'imageGallery', 'product_gallery', 'productGallery'],
   },
   html: {
@@ -67,7 +67,7 @@ const ELEMENTS: Record<string, {
   },
   hero_slider: {
     importPath: './custom-registry/CustomSlider',
-    componentExport: 'CustomSliderComponent',
+    componentExport: 'HeroSliderComponent',
     aliases: ['hero_slider', 'hero'],
   },
   carousel: {
@@ -87,7 +87,7 @@ const ELEMENTS: Record<string, {
   },
   list_details: {
     importPath: './custom-registry/ListDetails',
-    componentExport: 'ListDetailsComponent',
+    componentExport: 'ListWithDetailsComponent',
     aliases: ['detail_list'],
   },
   // Legacy elements in top-level components/
