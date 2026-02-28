@@ -47,6 +47,13 @@ describe('PageRenderer custom elements', () => {
     expect(screen.queryByText('Loading component...')).not.toBeInTheDocument();
   });
 
+  it('renders empty placeholder when customType is not in registry', () => {
+    render(<PageRenderer tree={makeTree('nonexistent_type', {})} data={{}} />);
+    // Should not crash, no loading text visible
+    expect(screen.queryByText('Loading component...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Component URL missing')).not.toBeInTheDocument();
+  });
+
   it('still renders CDN component when url is set and no customType', async () => {
     // CDN component — url is set, no customType — existing behaviour unchanged
     const tree = {

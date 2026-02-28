@@ -82,13 +82,13 @@ function RenderElement({ node, styles, data }: any) {
 
 function RenderComponent({ node, styles, data }: any) {
   const customType: string | undefined = node.settings?.customType;
-
-  // Branch A: built-in custom element from generated registry
   if (customType) {
     return <RenderCustomElement customType={customType} data={node.settings?.data ?? {}} styles={styles} />;
   }
+  return <RenderCdnComponent node={node} styles={styles} data={data} />;
+}
 
-  // Branch B: CDN-hosted ESM component (existing behaviour)
+function RenderCdnComponent({ node, styles, data }: any) {
   const [Comp, setComp] = useState<any>(() => MODULE_CACHE.get(node.url) ?? null);
 
   useEffect(() => {
@@ -119,14 +119,23 @@ function RenderCustomElement({ customType, data, styles }: { customType: string;
       return;
     }
     const loader = CUSTOM_ELEMENT_REGISTRY[customType];
-    if (!loader) return;
+    if (!loader) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[PageRenderer] Unknown customType: "${customType}". Run make elements-generate.`);
+      }
+      return;
+    }
     loader()
       .then(m => { CUSTOM_ELEMENT_CACHE.set(customType, m.default); setComp(() => m.default); })
-      .catch(() => null);
+      .catch((err) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`[PageRenderer] Failed to load customType "${customType}":`, err);
+        }
+      });
   }, [customType]);
 
   if (!Comp) return <div style={{ ...styles, minHeight: 60 }} />;
-  return <div style={styles}><Comp data={data} /></div>;
+  return <div style={styles}><Comp data={data} style={styles} /></div>;
 }
 
 export function resolveStyles(styles: any, device?: string): React.CSSProperties {
