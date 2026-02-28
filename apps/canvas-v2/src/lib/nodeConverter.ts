@@ -255,6 +255,42 @@ export function flattenElements(
 // Diff: prev tree vs next tree → STDB ops
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Single-node converter (for real-time remote merge)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function canvasNodeToElement(node: RawCanvasNode): FunnelElement | null {
+  let stylesObj: Record<string, unknown> = {};
+  let propsObj: Record<string, unknown> = {};
+  let settingsObj: Record<string, unknown> = {};
+  try { stylesObj = JSON.parse(node.styles || "{}"); } catch {}
+  try { propsObj = JSON.parse(node.props || "{}"); } catch {}
+  try { settingsObj = JSON.parse(node.settings || "{}"); } catch {}
+
+  const type = toElementType(node.nodeType, propsObj);
+
+  return {
+    id: node.id,
+    type,
+    name: (propsObj.label as string) ?? type,
+    content: propsObj.content as string | undefined,
+    src: propsObj.src as string | undefined,
+    placeholder: propsObj.placeholder as string | undefined,
+    style: stylesObj as CSSProperties,
+    tabletStyle: (settingsObj.breakpoints as Record<string, unknown>)
+      ?.md as CSSProperties | undefined,
+    mobileStyle: (settingsObj.breakpoints as Record<string, unknown>)
+      ?.sm as CSSProperties | undefined,
+    className: settingsObj.className as string | undefined,
+    customType: settingsObj.customType as string | undefined,
+    data: settingsObj.data as Record<string, unknown> | undefined,
+    schemeId: settingsObj.schemeId as string | undefined,
+    children: undefined,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function computeOps(
   prev: FunnelElement[],
   next: FunnelElement[],

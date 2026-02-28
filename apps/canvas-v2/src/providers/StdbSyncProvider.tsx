@@ -12,6 +12,7 @@ import {
   flatNodesToTree,
   flattenElements,
   computeOps,
+  canvasNodeToElement,
   type RawCanvasNode,
 } from "@/lib/nodeConverter";
 import type { FunnelElement } from "@/types";
@@ -25,7 +26,7 @@ function StdbSyncInner({
   pageId: string;
   tenantId: string;
 }) {
-  const { elements, setElements } = useFunnel();
+  const { elements, setElements, mergeRemoteNode } = useFunnel();
   const stdb = useSpacetimeDB() as any;
   const conn = (stdb?.getConnection?.() ?? null) as DbConnection | null;
   const [flatNodes] = useTable(tables.canvas_node);
@@ -35,6 +36,8 @@ function StdbSyncInner({
   const dirtyIds = useRef<Set<string>>(new Set());
   const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const connRef = useRef<DbConnection | null>(null);
+  // Track previous STDB node snapshots to detect remote changes
+  const prevNodesRef = useRef<Map<string, RawCanvasNode>>(new Map());
 
   // Keep connRef in sync with conn without triggering re-renders
   useEffect(() => {
@@ -46,6 +49,7 @@ function StdbSyncInner({
     initialized.current = false;
     prevElementsRef.current = [];
     dirtyIds.current.clear();
+    prevNodesRef.current = new Map();
   }, [pageId]);
 
   // Initial load: flat STDB nodes → FunnelElement tree → context
@@ -55,20 +59,52 @@ function StdbSyncInner({
 
     const filtered = [...flatNodes].filter(
       (n) => (n as any).pageId === pageId && (n as any).tenantId === tenantId
-    );
-    const tree = flatNodesToTree(filtered as RawCanvasNode[]);
+    ) as RawCanvasNode[];
+    const tree = flatNodesToTree(filtered);
     initialized.current = true;
     prevElementsRef.current = tree;
+    // Seed prevNodesRef so the remote-merge effect doesn't re-process the initial load
+    prevNodesRef.current = new Map(filtered.map((n) => [n.id, n]));
     setElements(tree);
   }, [flatNodes, setElements, pageId, tenantId]);
 
-  // Remote merge: STDB changes from AI / other users
+  // Remote merge: STDB changes from AI / other users → FunnelContext
   useEffect(() => {
-    // Phase 2: full CRDT merge will be implemented here.
-    // For now, remote structural changes are detected but local state is preserved.
-    // AI/remote operations will appear after a page refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flatNodes]);
+    if (!initialized.current) return;
+
+    const filtered = [...flatNodes].filter(
+      (n) => (n as any).pageId === pageId && (n as any).tenantId === tenantId
+    ) as RawCanvasNode[];
+
+    const currentMap = new Map(filtered.map((n) => [n.id, n]));
+    const prevMap = prevNodesRef.current;
+
+    // Detect upserts: new nodes or nodes changed by remote (AI / other users)
+    for (const [id, node] of currentMap) {
+      if (dirtyIds.current.has(id)) continue; // local edit — skip
+      const prev = prevMap.get(id);
+      const changed =
+        !prev ||
+        prev.styles !== node.styles ||
+        prev.props !== node.props ||
+        prev.settings !== node.settings;
+      if (changed) {
+        const element = canvasNodeToElement(node);
+        if (element) {
+          mergeRemoteNode(id, "upsert", element);
+        }
+      }
+    }
+
+    // Detect deletes: nodes removed by remote
+    for (const [id] of prevMap) {
+      if (!currentMap.has(id) && !dirtyIds.current.has(id)) {
+        mergeRemoteNode(id, "delete");
+      }
+    }
+
+    prevNodesRef.current = currentMap;
+  }, [flatNodes, pageId, tenantId, mergeRemoteNode]);
 
   // Debounced sync: local changes → STDB reducers
   const scheduleSync = useCallback(
