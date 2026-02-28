@@ -16,6 +16,7 @@ import {
   type RawCanvasNode,
 } from "@/lib/nodeConverter";
 import type { FunnelElement } from "@/types";
+import { LiveCursors } from "@/components/LiveCursors";
 
 // ── Inner component: runs inside SpacetimeDBProvider ─────────────────────────
 
@@ -203,7 +204,53 @@ function StdbSyncInner({
     scheduleSync(elements);
   }, [elements, scheduleSync]);
 
-  return null;
+  // Cursor broadcast: send mouse position to STDB at max 20fps (50ms throttle)
+  const lastCursorSend = useRef(0);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - lastCursorSend.current < 50) return;
+      lastCursorSend.current = now;
+      const conn = connRef.current;
+      if (!conn) return;
+      try {
+        conn.reducers.upsertCursor({
+          pageId,
+          tenantId,
+          x: e.clientX,
+          y: e.clientY,
+          selectedNodeId: null,
+          hoveredNodeId: null,
+          userName: "User",
+          userColor: "#3B82F6",
+          userType: "editor",
+          userAvatar: null,
+        });
+      } catch {
+        // Ignore reducer errors (e.g. not yet connected)
+      }
+    },
+    [pageId, tenantId]
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      // Remove cursor on unmount (cleanup)
+      const conn = connRef.current;
+      if (conn) {
+        try {
+          conn.reducers.removeCursor({});
+        } catch {
+          // Ignore errors on cleanup
+        }
+      }
+    };
+  }, [handleMouseMove]);
+
+  return <LiveCursors pageId={pageId} tenantId={tenantId} />;
 }
 
 // ── Outer: creates SpacetimeDB connection ─────────────────────────────────────
@@ -235,6 +282,7 @@ export function StdbSyncProvider({
             .subscribe([
               // MUST use raw SQL — query builder generates wrong column names (camelCase vs snake_case)
               `SELECT * FROM canvas_node WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
+              `SELECT * FROM active_cursor WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
             ]);
         })
         .onDisconnect(() => console.log("[StdbSync] disconnected")),
