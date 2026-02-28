@@ -32,12 +32,14 @@ spacetime/          # SpacetimeDB module (TypeScript → WASM → Maincloud)
 5. **`useTable` for live React state** — never poll REST for STDB data
 6. **Component source always saved** in MySQL `ComponentVersion.sourceCode` — AI needs it for future edits
 7. **`make stdb-generate` after every `module.ts` change** — regenerates bindings for all 3 apps
+8. **`make elements-generate` after every custom element change** — regenerates bundles in `packages/renderer/src/elements/`; without it, new/modified elements render as blank space in storefront and preview
 
 ## Dev Commands
 ```bash
 npm run dev:local          # Start all 4 services (requires .env at root)
 make stdb-publish          # Deploy module to Maincloud
 make stdb-generate         # Regenerate TypeScript bindings (run after module.ts changes)
+make elements-generate     # Regenerate custom element bundles (run after adding/modifying custom elements)
 cd apps/canvas-backend && npx prisma generate   # Regenerate Prisma client
 cd apps/canvas-backend && npx prisma db push    # Sync schema to MySQL (dev)
 ```
