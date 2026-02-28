@@ -2,6 +2,7 @@
 // @selorax/renderer — SSR-compatible tree renderer
 // Works in Next.js App Router (server + client), no canvas deps
 import { memo, useState, useEffect } from 'react';
+import { CUSTOM_ELEMENT_REGISTRY } from './elements/registry';
 
 const MODULE_CACHE = new Map<string, React.ComponentType<any>>();
 
@@ -80,6 +81,14 @@ function RenderElement({ node, styles, data }: any) {
 }
 
 function RenderComponent({ node, styles, data }: any) {
+  const customType: string | undefined = node.settings?.customType;
+
+  // Branch A: built-in custom element from generated registry
+  if (customType) {
+    return <RenderCustomElement customType={customType} data={node.settings?.data ?? {}} styles={styles} />;
+  }
+
+  // Branch B: CDN-hosted ESM component (existing behaviour)
   const [Comp, setComp] = useState<any>(() => MODULE_CACHE.get(node.url) ?? null);
 
   useEffect(() => {
@@ -97,6 +106,27 @@ function RenderComponent({ node, styles, data }: any) {
     </div>
   );
   return <div style={styles}><Comp settings={node.settings ?? {}} data={data} /></div>;
+}
+
+const CUSTOM_ELEMENT_CACHE = new Map<string, React.ComponentType<any>>();
+
+function RenderCustomElement({ customType, data, styles }: { customType: string; data: any; styles: any }) {
+  const [Comp, setComp] = useState<any>(() => CUSTOM_ELEMENT_CACHE.get(customType) ?? null);
+
+  useEffect(() => {
+    if (CUSTOM_ELEMENT_CACHE.has(customType)) {
+      setComp(() => CUSTOM_ELEMENT_CACHE.get(customType)!);
+      return;
+    }
+    const loader = CUSTOM_ELEMENT_REGISTRY[customType];
+    if (!loader) return;
+    loader()
+      .then(m => { CUSTOM_ELEMENT_CACHE.set(customType, m.default); setComp(() => m.default); })
+      .catch(() => null);
+  }, [customType]);
+
+  if (!Comp) return <div style={{ ...styles, minHeight: 60 }} />;
+  return <div style={styles}><Comp data={data} /></div>;
 }
 
 export function resolveStyles(styles: any, device?: string): React.CSSProperties {
