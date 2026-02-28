@@ -1,4 +1,4 @@
-.PHONY: dev prod down logs stdb-publish stdb-generate stdb-deploy db-migrate db-reset status
+.PHONY: dev prod down logs stdb-publish stdb-generate stdb-deploy db-migrate db-reset status elements-generate
 
 # ── SpacetimeDB (Maincloud) ────────────────────────────────────
 stdb-publish:
@@ -10,6 +10,10 @@ stdb-generate:
 	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/preview-server/src/module_bindings --module-path $(CURDIR)/spacetime
 	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/canvas-v2/src/module_bindings --module-path $(CURDIR)/spacetime
 	@echo "✓ Bindings generated for backend, dashboard, preview-server, canvas-v2"
+
+elements-generate:
+	npx tsx scripts/elements-generate.ts
+	@echo "✓ Custom element bundles written to packages/renderer/src/elements/"
 
 # Full deploy: publish to Maincloud + regenerate bindings
 stdb-deploy: stdb-publish stdb-generate
