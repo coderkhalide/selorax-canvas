@@ -30,7 +30,7 @@ function CanvasUI({
   aiOps: any[];
   conn: DbConnection;
 }) {
-  const { flatNodes, nodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId, moveNode, duplicateSelected, deleteNode } = useCanvas();
+  const { flatNodes, nodes, selectedIds, selectNode, multiSelectNodes, selectedNode, draggingId, setDraggingId, insertNode, moveNode, duplicateSelected, deleteNode } = useCanvas();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; targetId: string | null } | null>(null);
   const [isPublished, setIsPublished] = useState(false);
@@ -97,6 +97,53 @@ function CanvasUI({
     const currentDropInfo = dropInfo;
     setDropInfo(null);
     const { active, over } = event;
+
+    // ── Panel element dropped onto canvas ──────────────────────────────────────
+    if (active.data.current?.type === 'new-element') {
+      if (!over) return;
+      const { nodeType, defaultProps, defaultStyles } = active.data.current as {
+        nodeType: 'layout' | 'element' | 'component';
+        defaultProps: Record<string, unknown>;
+        defaultStyles: Record<string, unknown>;
+      };
+      const overNode = nodes.get(over.id as string);
+      if (!overNode) return;
+
+      let newParentId: string | null = null;
+      let newOrder: string;
+
+      if (currentDropInfo?.position === 'inside' && overNode.nodeType === 'layout') {
+        // Drop inside a layout container
+        newParentId = over.id as string;
+        const children = Array.from(nodes.values())
+          .filter(n => n.parentId === newParentId)
+          .sort((a, b) => a.order.localeCompare(b.order));
+        newOrder = resolveDropOrder(children.at(-1)?.order, undefined);
+      } else {
+        // Drop before/after a sibling
+        const position = currentDropInfo?.position ?? 'after';
+        newParentId    = overNode.parentId ?? null;
+        const siblings = Array.from(nodes.values())
+          .filter(n => n.parentId === newParentId)
+          .sort((a, b) => a.order.localeCompare(b.order));
+        const overIdx  = siblings.findIndex(n => n.id === over.id);
+        newOrder = position === 'before'
+          ? resolveDropOrder(siblings[overIdx - 1]?.order, overNode.order)
+          : resolveDropOrder(overNode.order, siblings[overIdx + 1]?.order);
+      }
+
+      insertNode({
+        pageId, tenantId,
+        nodeType,
+        parentId: newParentId,
+        order:    newOrder,
+        props:    JSON.stringify(defaultProps ?? {}),
+        styles:   JSON.stringify(defaultStyles ?? {}),
+        settings: '{}',
+      });
+      return; // ← don't fall through to move-node logic
+    }
+
     if (!over || active.id === over.id) return;
 
     const activeNode = nodes.get(active.id as string);
@@ -129,7 +176,7 @@ function CanvasUI({
       ? resolveDropOrder(siblings[overIdx - 1]?.order, overNode.order)
       : resolveDropOrder(overNode.order, siblings[overIdx + 1]?.order);
     moveNode(active.id as string, newParentId, newOrder);
-  }, [nodes, dropInfo, setDraggingId, moveNode]);
+  }, [nodes, dropInfo, setDraggingId, insertNode, moveNode, pageId, tenantId]);
 
   const lastSelectedId = [...selectedIds].at(-1) ?? null;
   const tree           = flatNodes.length > 0 ? buildTree([...flatNodes]) : null;

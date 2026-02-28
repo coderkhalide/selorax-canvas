@@ -1,6 +1,7 @@
 'use client';
 import { useCanvas } from '@/context/CanvasContext';
 import { resolveDropOrder } from '@/utils/drop-order';
+import { useDraggable } from '@dnd-kit/core';
 
 const ELEMENT_DEFS = {
   layout: [
@@ -46,7 +47,7 @@ const ELEMENT_DEFS = {
   ],
 };
 
-type ElementDef = typeof ELEMENT_DEFS.layout[0] | typeof ELEMENT_DEFS.content[0];
+export type ElementDef = typeof ELEMENT_DEFS.layout[0] | typeof ELEMENT_DEFS.content[0];
 
 export default function ElementsPanel({ pageId, tenantId }: { pageId: string; tenantId: string }) {
   const { insertNode, selectedIds, nodes } = useCanvas();
@@ -80,10 +81,7 @@ export default function ElementsPanel({ pageId, tenantId }: { pageId: string; te
         <p className="elements-category-title">Layout</p>
         <div className="elements-grid">
           {ELEMENT_DEFS.layout.map(def => (
-            <button key={def.key} className="element-card" onClick={() => addElement(def)}>
-              <span className="element-card-icon">{def.icon}</span>
-              <span>{def.label}</span>
-            </button>
+            <DraggableElementCard key={def.key} def={def} onAdd={() => addElement(def)} />
           ))}
         </div>
       </div>
@@ -91,13 +89,38 @@ export default function ElementsPanel({ pageId, tenantId }: { pageId: string; te
         <p className="elements-category-title">Content</p>
         <div className="elements-grid">
           {ELEMENT_DEFS.content.map(def => (
-            <button key={def.key} className="element-card" onClick={() => addElement(def)}>
-              <span className="element-card-icon">{def.icon}</span>
-              <span>{def.label}</span>
-            </button>
+            <DraggableElementCard key={def.key} def={def} onAdd={() => addElement(def)} />
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function DraggableElementCard({
+  def, onAdd,
+}: { def: ElementDef; onAdd: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id:   `new-${def.key}`,
+    data: {
+      type:          'new-element',
+      nodeType:      def.nodeType,
+      defaultProps:  def.defaultProps,
+      defaultStyles: def.defaultStyles,
+    },
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      className="element-card"
+      style={{ opacity: isDragging ? 0.5 : 1, touchAction: 'none' }}
+      onClick={onAdd}
+      {...listeners}
+      {...attributes}
+    >
+      <span className="element-card-icon">{def.icon}</span>
+      <span>{def.label}</span>
+    </button>
   );
 }
