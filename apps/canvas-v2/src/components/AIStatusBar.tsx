@@ -35,17 +35,18 @@ export function AIStatusBar({ pageId, tenantId }: Props) {
   // Most recently finished op within the last 5 seconds
   const recentFinished = useMemo(() => {
     const nowMs = Date.now();
-    return (
-      (allOps as any[]).find(
-        (op) =>
-          op.pageId === pageId &&
-          op.tenantId === tenantId &&
-          (op.status === "completed" || op.status === "error") &&
-          op.completedAt != null &&
-          // completedAt is a STDB u64 — stored as microseconds, compare to ms
-          Number(op.completedAt) / 1000 > nowMs - 5000
-      ) ?? null
+    const finished = (allOps as any[]).filter(
+      (op) =>
+        op.pageId === pageId &&
+        op.tenantId === tenantId &&
+        (op.status === "completed" || op.status === "error") &&
+        op.completedAt != null &&
+        // completedAt is a STDB u64 — stored as microseconds, compare to ms
+        Number(op.completedAt) / 1000 > nowMs - 5000
     );
+    return finished.sort(
+      (a: any, b: any) => Number(b.completedAt ?? 0) - Number(a.completedAt ?? 0)
+    )[0] ?? null;
   }, [allOps, pageId, tenantId]);
 
   const op = activeOp ?? recentFinished;
@@ -56,7 +57,7 @@ export function AIStatusBar({ pageId, tenantId }: Props) {
   const isFailed = op.status === "error";
 
   const displayMessage: string =
-    op.currentAction || op.prompt || "AI is working...";
+    op.currentAction || "AI is working...";
   const progress: number =
     typeof op.progress === "number"
       ? op.progress

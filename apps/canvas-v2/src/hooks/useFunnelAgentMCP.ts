@@ -630,7 +630,11 @@ export function useFunnelAgentMCP({ pageId, tenantId }: UseFunnelAgentMCPOptions
 
         // Loop continues to next iteration
       } catch (err: any) {
-        if (err.name === "AbortError") return;
+        if (err.name === "AbortError") {
+          setIsLoading(false);
+          setIsThinking(false);
+          return;
+        }
         console.error("MCP Agent Loop Error:", err);
         addThinkingStep("Error in MCP Agent Loop", "failed", err.message);
         break;

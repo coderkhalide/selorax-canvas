@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 // Force dynamic to prevent caching of the streaming response
 export const dynamic = "force-dynamic";
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
           controller.close();
         } catch (err) {
           console.error("[funnel-agent proxy] Streaming error:", err);
+          reader.cancel().catch(() => {});
           controller.error(err);
         }
       },
