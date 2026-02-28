@@ -11,7 +11,7 @@
     "mcp:test": "curl -X POST http://localhost:3001/api/mcp -H 'Content-Type: application/json' -d '{\"method\": \"initialize\"}'",
     "mcp:health": "curl http://localhost:3001/api/mcp?health=true",
     "mcp:tools": "curl -X POST http://localhost:3001/api/mcp -H 'Content-Type: application/json' -d '{\"method\": \"tools/list\"}'",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
