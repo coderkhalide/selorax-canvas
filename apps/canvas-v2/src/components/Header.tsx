@@ -26,6 +26,8 @@ import {
   ChevronDown,
   FileText,
   Home,
+  Play,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { useFunnel } from "../context/FunnelContext";
@@ -42,6 +44,7 @@ import {
 } from "../services/openai";
 import Image from "next/image";
 import { usePageList } from "../hooks/usePageList";
+import { usePublish } from "../hooks/usePublish";
 import { useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -99,6 +102,32 @@ export const Header: React.FC<HeaderProps> = ({
   const { pages, loading: pagesLoading } = usePageList(tenantId ?? "store_001");
   const [showPageMenu, setShowPageMenu] = useState(false);
   const currentPage = pages.find((p) => p.id === pageId);
+
+  const { publish, status: publishStatus } = usePublish(pageId, tenantId);
+
+  const previewUrl = process.env.NEXT_PUBLIC_PREVIEW_URL ?? "http://localhost:3004";
+  const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "http://localhost:3003";
+  const currentPageSlug = currentPage?.slug;
+
+  const handleOpenPreview = () => {
+    if (!pageId) return;
+    window.open(`${previewUrl}/${pageId}`, "_blank");
+  };
+
+  const handleOpenStorefront = () => {
+    if (!currentPageSlug) return;
+    window.open(`${storefrontUrl}/${currentPageSlug}`, "_blank");
+  };
+
+  const handleBackendPublish = async () => {
+    const ok = await publish();
+    window.dispatchEvent(new CustomEvent("show-toast", {
+      detail: {
+        message: ok ? "Published successfully!" : "Publish failed",
+        type: ok ? "success" : "error",
+      },
+    }));
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -719,6 +748,52 @@ export const Header: React.FC<HeaderProps> = ({
           onRegenerate={regenerateSession}
           onToggleEnabled={handleToggleMcp}
         />
+        {pageId && (
+          <div className="flex items-center gap-2">
+            {/* Preview — opens preview-server */}
+            <button
+              onClick={handleOpenPreview}
+              title="Open in Preview Server (live, unpublished)"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Preview
+            </button>
+
+            {/* View Live — opens published storefront */}
+            <button
+              onClick={handleOpenStorefront}
+              disabled={!currentPageSlug}
+              title="Open published page on Storefront"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              View Live
+            </button>
+
+            {/* Publish to SeloraX backend */}
+            <button
+              onClick={handleBackendPublish}
+              disabled={publishStatus === "publishing"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
+                publishStatus === "success"
+                  ? "bg-green-500 text-white"
+                  : publishStatus === "error"
+                  ? "bg-red-500 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {publishStatus === "publishing" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {publishStatus === "success"
+                ? "Published!"
+                : publishStatus === "error"
+                ? "Failed"
+                : publishStatus === "publishing"
+                ? "Publishing..."
+                : "Publish"}
+            </button>
+          </div>
+        )}
         {viewMode === "preview" && (
           <button
             onClick={onScreenshot}
