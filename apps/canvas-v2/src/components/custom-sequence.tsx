@@ -60,9 +60,10 @@ export const SequenceComponent: React.FC<{
   onUpdate?: (id: string, updates: Partial<FunnelElement>) => void;
   isPreview?: boolean;
 }> = ({ element, onUpdate, isPreview }) => {
-  const { deviceView } = useFunnel();
+  const funnelCtx = useFunnel();
   // We don't force mobile view for all layouts anymore, we use responsive classes
   // but some layouts might be fundamentally different.
+  const deviceView = funnelCtx?.deviceView ?? "desktop";
   const isMobile = deviceView === "mobile";
 
   const {

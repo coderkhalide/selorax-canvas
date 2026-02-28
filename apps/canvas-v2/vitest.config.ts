@@ -8,6 +8,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
+    // Exclude Playwright E2E specs — they use Playwright's test runner, not Vitest
+    exclude: ["**/node_modules/**", "**/e2e/**", "**/*.spec.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -18,5 +20,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["react", "react-dom"],
   },
 });

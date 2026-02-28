@@ -135,7 +135,7 @@ function RenderCustomElement({ customType, data, styles }: { customType: string;
   }, [customType]);
 
   if (!Comp) return <div style={{ ...styles, minHeight: 60 }} />;
-  return <div style={styles}><Comp data={data} style={styles} /></div>;
+  return <Comp data={data} style={styles} />;
 }
 
 export function resolveStyles(styles: any, device?: string): React.CSSProperties {

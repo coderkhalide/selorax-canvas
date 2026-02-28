@@ -32,106 +32,7 @@ var EditableText = React.memo(({
   return prevProps.html === nextProps.html && prevProps.editable === nextProps.editable && JSON.stringify(prevProps.style) === JSON.stringify(nextProps.style) && prevProps.className === nextProps.className;
 });
 
-import { forwardRef as forwardRef2, createElement as createElement2 } from "react";
-
-var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-var toCamelCase = (string) => string.replace(
-  /^([A-Z])|[\s-_]+(\w)/g,
-  (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
-);
-var toPascalCase = (string) => {
-  const camelCase = toCamelCase(string);
-  return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
-};
-var mergeClasses = (...classes) => classes.filter((className, index, array) => {
-  return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index;
-}).join(" ").trim();
-var hasA11yProp = (props) => {
-  for (const prop in props) {
-    if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
-      return true;
-    }
-  }
-};
-
-import { forwardRef, createElement } from "react";
-
-var defaultAttributes = {
-  xmlns: "http://www.w3.org/2000/svg",
-  width: 24,
-  height: 24,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 2,
-  strokeLinecap: "round",
-  strokeLinejoin: "round"
-};
-
-var Icon = forwardRef(
-  ({
-    color = "currentColor",
-    size = 24,
-    strokeWidth = 2,
-    absoluteStrokeWidth,
-    className = "",
-    children,
-    iconNode,
-    ...rest
-  }, ref) => createElement(
-    "svg",
-    {
-      ref,
-      ...defaultAttributes,
-      width: size,
-      height: size,
-      stroke: color,
-      strokeWidth: absoluteStrokeWidth ? Number(strokeWidth) * 24 / Number(size) : strokeWidth,
-      className: mergeClasses("lucide", className),
-      ...!children && !hasA11yProp(rest) && { "aria-hidden": "true" },
-      ...rest
-    },
-    [
-      ...iconNode.map(([tag, attrs]) => createElement(tag, attrs)),
-      ...Array.isArray(children) ? children : [children]
-    ]
-  )
-);
-
-var createLucideIcon = (iconName, iconNode) => {
-  const Component = forwardRef2(
-    ({ className, ...props }, ref) => createElement2(Icon, {
-      ref,
-      iconNode,
-      className: mergeClasses(
-        `lucide-${toKebabCase(toPascalCase(iconName))}`,
-        `lucide-${iconName}`,
-        className
-      ),
-      ...props
-    })
-  );
-  Component.displayName = toPascalCase(iconName);
-  return Component;
-};
-
-var __iconNode = [
-  [
-    "path",
-    {
-      d: "M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z",
-      key: "rib7q0"
-    }
-  ],
-  [
-    "path",
-    {
-      d: "M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z",
-      key: "1ymkrd"
-    }
-  ]
-];
-var Quote = createLucideIcon("quote", __iconNode);
+import * as Icons from "lucide-react";
 
 var getGradientTextStyle = (color) => {
   if (color?.includes("gradient")) {
@@ -233,7 +134,7 @@ var QuotesComponent = ({ element, onUpdate, isPreview, deviceView = "desktop" })
             ),
             /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
               /* @__PURE__ */ jsx2(
-                Quote,
+                Icons.Quote,
                 {
                   className: "w-4 h-4",
                   style: { color: quoteMarkColor }
@@ -277,7 +178,7 @@ var QuotesComponent = ({ element, onUpdate, isPreview, deviceView = "desktop" })
           style: { ...baseStyle, borderColor: accentColor },
           children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-2", children: [
             /* @__PURE__ */ jsx2(
-              Quote,
+              Icons.Quote,
               {
                 className: "w-4 h-4",
                 style: { color: quoteMarkColor }
@@ -302,7 +203,7 @@ var QuotesComponent = ({ element, onUpdate, isPreview, deviceView = "desktop" })
     if (layout === "minimal") {
       return /* @__PURE__ */ jsx2("div", { className: "rounded-md", style: baseStyle, children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-2", children: [
         /* @__PURE__ */ jsx2(
-          Quote,
+          Icons.Quote,
           {
             className: "w-4 h-4",
             style: { color: quoteMarkColor }
@@ -327,7 +228,7 @@ var QuotesComponent = ({ element, onUpdate, isPreview, deviceView = "desktop" })
         className: "rounded-xl border border-gray-200 shadow-sm",
         style: baseStyle,
         children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
-          /* @__PURE__ */ jsx2(Quote, { className: "w-4 h-4", style: { color: quoteMarkColor } }),
+          /* @__PURE__ */ jsx2(Icons.Quote, { className: "w-4 h-4", style: { color: quoteMarkColor } }),
           /* @__PURE__ */ jsxs("div", { className: "flex-1", children: [
             /* @__PURE__ */ jsx2(
               EditableText,

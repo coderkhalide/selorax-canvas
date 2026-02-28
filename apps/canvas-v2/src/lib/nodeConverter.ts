@@ -317,8 +317,12 @@ export function computeOps(
           styles: entry.styles,
           props: entry.props,
           settings: entry.settings,
-          componentUrl: (entry.el as FunnelElement & { _componentUrl?: string })
-            ._componentUrl ?? null,
+          // Prefer _componentUrl (set when loading from STDB), fall back to
+          // element.data.componentUrl (set when dragged from ComponentBrowser panel).
+          componentUrl:
+            (entry.el as FunnelElement & { _componentUrl?: string })._componentUrl ??
+            (entry.el.data as any)?.componentUrl ??
+            null,
           componentVersion: null,
           componentId: null,
         },

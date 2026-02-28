@@ -430,9 +430,7 @@ const FunnelContext = createContext<FunnelContextType | undefined>(undefined);
 
 export const useFunnel = () => {
   const context = useContext(FunnelContext);
-  if (!context)
-    throw new Error("useFunnel must be used within a FunnelProvider");
-  return context;
+  return context ?? null;
 };
 
 export const FunnelProvider: React.FC<{ children: ReactNode }> = ({

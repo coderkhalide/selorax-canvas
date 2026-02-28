@@ -1,6 +1,7 @@
 import React2 from "react";
 
 import React, { useRef } from "react";
+import { Timer } from "lucide-react";
 
 var getGradientTextStyle = (color) => {
   if (color?.includes("gradient")) {

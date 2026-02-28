@@ -272,12 +272,14 @@ router.post('/seed-component', async (req, res) => {
       },
     });
 
-    // 3. ESM component — uses React.createElement so it works via dynamic import
-    //    No hooks → no multiple-React-instance issues
+    // 3. ESM component — uses React.createElement so it works via dynamic import.
+    //    Imports bare "react" which the canvas app's import map resolves to React 19,
+    //    ensuring the same $$typeof symbol (react.transitional.element) as the host.
+    //    No hooks → no multiple-React-instance issues beyond $$typeof.
     const sourceCode = `
 // SeloraX TestBanner component — ${new Date().toISOString()}
 // ESM component loaded from Cloudflare R2 via dynamic import
-import { createElement as h } from 'https://esm.sh/react@18.3.1';
+import { createElement as h } from 'react';
 
 export default function TestBanner({ settings = {}, data = {} }) {
   const { title = 'Hello from R2!', color = '#7C3AED' } = settings;
@@ -370,7 +372,7 @@ router.post('/test-r2', async (_req, res) => {
 
     const componentCode = `
 // SeloraX Test Component — ${new Date().toISOString()}
-import { createElement as h } from 'https://esm.sh/react@18.3.1';
+import { createElement as h } from 'react';
 export default function TestBanner({ settings = {}, data = {} }) {
   const { title = 'Hello from R2!', color = '#7C3AED' } = settings;
   return h('div', {

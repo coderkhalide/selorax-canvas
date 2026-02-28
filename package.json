@@ -9,26 +9,20 @@
   "scripts": {
     "dev": "turbo run dev",
     "test:e2e": "tsx scripts/test-e2e.ts",
-    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview,canvas-v2 -c cyan,magenta,yellow,green,blue \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\" \"npm run dev --workspace=apps/canvas-v2 -- --port 3005\"",
+    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview -c cyan,magenta,yellow,green \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "stdb:publish": "cd spacetime && spacetime publish --server maincloud selorax-canvas",
-    "stdb:generate": "npm run stdb:generate:backend && npm run stdb:generate:dashboard && npm run stdb:generate:preview && npm run stdb:generate:canvas-v2",
+    "stdb:generate": "npm run stdb:generate:backend && npm run stdb:generate:dashboard && npm run stdb:generate:preview",
     "stdb:generate:backend": "spacetime generate --lang typescript --out-dir apps/canvas-backend/src/module_bindings --module-path ./spacetime",
     "stdb:generate:dashboard": "spacetime generate --lang typescript --out-dir apps/canvas-dashboard/src/module_bindings --module-path ./spacetime",
     "stdb:generate:preview": "spacetime generate --lang typescript --out-dir apps/preview-server/src/module_bindings --module-path ./spacetime",
-    "stdb:generate:canvas-v2": "spacetime generate --lang typescript --out-dir apps/canvas-v2/src/module_bindings --module-path ./spacetime",
     "stdb:deploy": "npm run stdb:publish && npm run stdb:generate",
     "docker:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "test:backend": "npm run test --workspace=apps/canvas-backend",
-    "test:renderer": "npm run test --workspace=packages/renderer",
-    "postinstall": "rm -rf apps/canvas-v2/node_modules/@testing-library/react/node_modules/react apps/canvas-v2/node_modules/@testing-library/react/node_modules/react-dom"
-  },
-  "resolutions": {
-    "@testing-library/react/react": "^19.0.0",
-    "@testing-library/react/react-dom": "^19.0.0"
+    "test:renderer": "npm run test --workspace=packages/renderer"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -39,6 +33,5 @@
     "tsx": "^4.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  }
 }

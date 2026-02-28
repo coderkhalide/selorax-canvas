@@ -167,7 +167,7 @@ async function main() {
         bundle: true,
         format: 'esm',
         jsx: 'automatic',
-        external: ['react', 'react-dom', 'react/jsx-runtime'],
+        external: ['react', 'react-dom', 'react/jsx-runtime', 'lucide-react'],
         write: false,
         // Suppress warnings about browser APIs (window.innerWidth etc.)
         platform: 'browser',

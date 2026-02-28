@@ -23,9 +23,11 @@ import { LiveCursors } from "@/components/LiveCursors";
 function StdbSyncInner({
   pageId,
   tenantId,
+  currentUserId,
 }: {
   pageId: string;
   tenantId: string;
+  currentUserId: string | undefined;
 }) {
   const { elements, setElements, setRemoteElements, mergeRemoteNode } = useFunnel();
   const stdb = useSpacetimeDB() as any;
@@ -41,16 +43,10 @@ function StdbSyncInner({
   const connRef = useRef<DbConnection | null>(null);
   // Track previous STDB node snapshots to detect remote changes
   const prevNodesRef = useRef<Map<string, RawCanvasNode>>(new Map());
-  // Track local user's identity so LiveCursors can filter out self
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   // Keep connRef in sync with conn without triggering re-renders
-  // Also capture the local user's identity for cursor filtering (state so LiveCursors re-renders)
   useEffect(() => {
     connRef.current = conn;
-    if (conn) {
-      setCurrentUserId((conn as any).identity?.toHexString?.());
-    }
   }, [conn]);
 
   // Reset initialization when pageId changes (user navigated to a different page)
@@ -301,6 +297,11 @@ export function StdbSyncProvider({
   tenantId: string;
   children: React.ReactNode;
 }) {
+  // Capture identity from onConnect (2nd arg) — this fires reliably once the
+  // server has assigned an identity, so currentUserId is never undefined when
+  // LiveCursors compares cursor.userId against it.
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+
   const connectionBuilder = useMemo(
     () =>
       DbConnection.builder()
@@ -311,8 +312,10 @@ export function StdbSyncProvider({
         .withDatabaseName(
           process.env.NEXT_PUBLIC_SPACETIMEDB_DB ?? "selorax-canvas"
         )
-        .onConnect((conn: DbConnection) => {
+        .onConnect((conn: DbConnection, identity: any) => {
           console.log("[StdbSync] connected, subscribing to page:", pageId);
+          // identity is the 2nd arg — guaranteed non-null when onConnect fires
+          setCurrentUserId(identity?.toHexString?.() ?? undefined);
           conn
             .subscriptionBuilder()
             .onApplied(() => console.log("[StdbSync] subscription ready"))
@@ -332,7 +335,7 @@ export function StdbSyncProvider({
 
   return (
     <SpacetimeDBProviderAny connectionBuilder={connectionBuilder}>
-      <StdbSyncInner pageId={pageId} tenantId={tenantId} />
+      <StdbSyncInner pageId={pageId} tenantId={tenantId} currentUserId={currentUserId} />
       {children}
     </SpacetimeDBProviderAny>
   );

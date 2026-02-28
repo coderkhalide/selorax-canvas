@@ -9,7 +9,9 @@ export function buildTree(flatNodes: any[]): any {
       props:    safeJson(n.props,    {}),
       settings: safeJson(n.settings, {}),
       children: [],
-      url:              n.component_url     ?? undefined,
+      // Fall back to settings.data.componentUrl for nodes where the
+      // component_url column was not set (canvas drag-from-panel bug, now fixed).
+      url:              n.component_url ?? safeJson(n.settings, {})?.data?.componentUrl ?? undefined,
       componentId:      n.component_id      ?? undefined,
       componentVersion: n.component_version ?? undefined,
     });

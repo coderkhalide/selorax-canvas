@@ -32,6 +32,7 @@ var EditableText = React.memo(({
   return prevProps.html === nextProps.html && prevProps.editable === nextProps.editable && JSON.stringify(prevProps.style) === JSON.stringify(nextProps.style) && prevProps.className === nextProps.className;
 });
 
+import * as Icons from "lucide-react";
 import { jsx as jsx2, jsxs } from "react/jsx-runtime";
 var StepsComponent = ({ element, onUpdate, isPreview, deviceView = "desktop" }) => {
   const isMobile = deviceView === "mobile";

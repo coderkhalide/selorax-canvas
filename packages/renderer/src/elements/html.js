@@ -1,6 +1,7 @@
 import React2 from "react";
 
 import { useEffect, useRef } from "react";
+import { Code } from "lucide-react";
 import { jsx } from "react/jsx-runtime";
 var CustomHtmlComponent = ({ element, isPreview }) => {
   const { html = "" } = element.data || {};
