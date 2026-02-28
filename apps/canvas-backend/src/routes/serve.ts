@@ -9,12 +9,13 @@ const router = Router();
 // GET /api/serve/:tenantId/:pageType/:slug
 router.get('/:tenantId/:pageType/:slug', async (req, res) => {
   const { tenantId, pageType, slug } = req.params;
+  const visitorId = (req.query.visitorId as string) || null;
 
   try {
     const cacheKey = `serve:${tenantId}:${pageType}:${slug}`;
 
-    // 1. Redis fast path (skip if Redis unavailable)
-    if (redis && redis.status === 'ready') {
+    // 1. Redis fast path — skip if visitor has an ID (may get experiment variant)
+    if (!visitorId && redis && redis.status === 'ready') {
       try {
         const cached = await redis.get(cacheKey);
         if (cached) {
@@ -36,12 +37,66 @@ router.get('/:tenantId/:pageType/:slug', async (req, res) => {
     });
     if (!page) return res.status(404).json({ error: 'Not found or not published' });
 
-    const version = await prisma.pageVersion.findUnique({
-      where: { id: page.publishedVersionId! },
-    });
+    // 3. Resolve experiment variant (if visitor has an ID and an experiment is running)
+    let experimentContext: { experimentId: string; variantId: string; isControl: boolean } | null = null;
+    let versionId = page.publishedVersionId!;
+
+    if (visitorId && redis && redis.status === 'ready') {
+      try {
+        const expConfig = await redis.get(`exp:page:${tenantId}:${page.id}`);
+        if (expConfig) {
+          const { experimentId, variants } = JSON.parse(expConfig) as {
+            experimentId: string;
+            variants: Array<{ id: string; trafficWeight: number; isControl: boolean; pageVersionId: string }>;
+          };
+
+          // Sticky assignment — check existing
+          const assignKey = `exp:assign:${experimentId}:${visitorId}`;
+          let assigned = await redis.get(assignKey);
+
+          if (!assigned) {
+            // Weighted random assignment
+            const total = variants.reduce((s: number, v: { trafficWeight: number }) => s + v.trafficWeight, 0);
+            let r = Math.random() * total;
+            let picked = variants[0];
+            for (const v of variants) {
+              r -= v.trafficWeight;
+              if (r <= 0) { picked = v; break; }
+            }
+            assigned = picked.id;
+            await redis.set(assignKey, assigned, 'EX', 86400 * 30).catch(() => {});
+
+            // Record session (fire-and-forget)
+            prisma.visitorSession.create({
+              data: {
+                tenantId,
+                experimentId,
+                variantId: assigned,
+                visitorId,
+              },
+            }).catch(() => {});
+          }
+
+          // Look up assigned variant
+          const variant = variants.find((v: { id: string }) => v.id === assigned);
+          if (variant) {
+            versionId = variant.pageVersionId;
+            experimentContext = {
+              experimentId,
+              variantId: variant.id,
+              isControl: variant.isControl,
+            };
+          }
+        }
+      } catch {
+        // Experiment resolution failed — serve control silently
+      }
+    }
+
+    const version = await prisma.pageVersion.findUnique({ where: { id: versionId } });
     if (!version) return res.status(404).json({ error: 'Version not found' });
 
-    // Resolve funnel context
+    // 4. Resolve funnel context
     let funnelContext = null;
     const funnelStep = await prisma.funnelStep.findFirst({
       where: { pageId: page.id },
@@ -71,11 +126,11 @@ router.get('/:tenantId/:pageType/:slug', async (req, res) => {
       pageId: page.id,
       tenantId,
       funnelContext,
-      experimentContext: null,
+      experimentContext,
     };
 
-    // 3. Populate cache if Redis available
-    if (redis && redis.status === 'ready') {
+    // 5. Cache only non-personalized responses
+    if (!visitorId && redis && redis.status === 'ready') {
       redis.set(cacheKey, JSON.stringify(payload), 'EX', 3600).catch(() => {});
     }
 

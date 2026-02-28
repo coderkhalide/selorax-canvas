@@ -68,6 +68,15 @@ export default function ClientAnalytics({
   funnelContext,
   experimentContext,
 }: ClientAnalyticsProps) {
+  // Sync _sid from localStorage → cookie so SSR can read it on next request
+  useEffect(() => {
+    const sid = getVisitorId();
+    if (sid && typeof document !== 'undefined') {
+      // 1-year cookie, SameSite=Lax — readable by Next.js server component
+      document.cookie = `_sid=${sid}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    }
+  }, []);
+
   // Fire page_view on mount
   useEffect(() => {
     fireEvent({
@@ -98,25 +107,41 @@ export default function ClientAnalytics({
     [tenantId, pageId, funnelContext, experimentContext],
   );
 
-  // Navigate to next funnel step
+  // Resolve a plain-object funnel action to a navigation function.
+  const resolveAction = useCallback(
+    (action: { type: string; url?: string } | null): (() => void) | null => {
+      if (!action) return null;
+      return () => {
+        if (action.type === 'redirect' && action.url) {
+          window.location.href = action.url;
+        } else if (funnelContext?.nextStepUrl) {
+          window.location.href = funnelContext.nextStepUrl;
+        }
+      };
+    },
+    [funnelContext],
+  );
+
+  // Navigate to next funnel step.
+  // If onSuccess is a redirect action, honour it even when nextStepUrl exists.
   const onFunnelNext = useCallback(() => {
-    if (funnelContext?.nextStepUrl) {
+    const action = funnelContext?.onSuccess;
+    if (action?.type === 'redirect' && action.url) {
+      window.location.href = action.url;
+    } else if (funnelContext?.nextStepUrl) {
       window.location.href = funnelContext.nextStepUrl;
-    } else if (funnelContext?.onSuccess?.url) {
-      window.location.href = funnelContext.onSuccess.url;
     }
   }, [funnelContext]);
 
   // PageRenderer.FunnelContext expects onSuccess/onSkip as functions (or null).
-  // We adapt the API-level plain-object shape here.
   const rendererFunnelContext = funnelContext
     ? {
         funnelId:        funnelContext.funnelId,
         funnelStepOrder: funnelContext.funnelStepOrder,
         nextStepUrl:     funnelContext.nextStepUrl,
         isLastStep:      funnelContext.isLastStep,
-        onSuccess:       null as null,
-        onSkip:          null as null,
+        onSuccess:       resolveAction(funnelContext.onSuccess),
+        onSkip:          resolveAction(funnelContext.onSkip),
       }
     : null;
 
