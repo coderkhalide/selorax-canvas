@@ -25,14 +25,14 @@ describe('resolveStyles', () => {
       fontSize: '24px',
       _sm: { padding: '20px' },
     };
-    const result = resolveStyles(styles, 'mobile');
+    const result = resolveStyles(styles, undefined, 'mobile');
     expect(result.padding).toBe('20px');    // overridden
     expect(result.fontSize).toBe('24px');   // base preserved
   });
 
   it('does not apply _sm overrides for desktop (no device)', () => {
     const styles = { padding: '60px', _sm: { padding: '20px' } };
-    expect(resolveStyles(styles).padding).toBe('60px');
+    expect(resolveStyles(styles, undefined, undefined).padding).toBe('60px');
   });
 
   it('handles empty styles object', () => {
