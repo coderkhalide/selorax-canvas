@@ -13,9 +13,8 @@ export const updateNodePropsTool = createTool({
   outputSchema: z.object({ message: z.string() }),
   execute: async (context) => {
     await callReducer('update_node_props', {
-      node_id:   context.node_id,
-      tenant_id: context.tenant_id,
-      props:     JSON.stringify(context.props),
+      node_id: context.node_id,
+      props:   JSON.stringify(context.props),
     });
     return { message: `Props updated for node ${context.node_id}` };
   },

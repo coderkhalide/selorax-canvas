@@ -15,7 +15,6 @@ export const moveNodeTool = createTool({
   execute: async (context) => {
     await callReducer('move_node', {
       node_id:       context.node_id,
-      tenant_id:     context.tenant_id,
       new_parent_id: context.new_parent_id,
       new_order:     context.new_order,
     });
