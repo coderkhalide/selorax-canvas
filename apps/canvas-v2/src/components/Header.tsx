@@ -140,7 +140,6 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, [showPageMenu]);
 
-  const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingToDb, setIsSavingToDb] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
@@ -250,65 +249,6 @@ export const Header: React.FC<HeaderProps> = ({
       );
     } finally {
       setIsTogglingTemplate(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!slug || !accessToken || !storeId || !domain) {
-      window.dispatchEvent(
-        new CustomEvent("show-toast", {
-          detail: {
-            message: "Missing slug, access token, store id, or domain",
-            type: "error",
-          },
-        }),
-      );
-      return;
-    }
-
-    setIsPublishing(true);
-    try {
-      const payload = {
-        theme_bulder_version: 2,
-        version: 1,
-        elements: processExportData(elements, selectedProduct),
-        globalCss: globalCss,
-        theme: {
-          currentSchemeId: currentSchemeId,
-          schemes: schemes,
-        },
-      };
-
-      const result = await updateProductTemplate(
-        slug,
-        accessToken,
-        payload,
-        storeId,
-      );
-      if (result.success) {
-        window.dispatchEvent(
-          new CustomEvent("show-toast", {
-            detail: { message: "Published successfully!", type: "success" },
-          }),
-        );
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("show-toast", {
-            detail: {
-              message: result.error || "Failed to publish",
-              type: "error",
-            },
-          }),
-        );
-      }
-    } catch (error) {
-      window.dispatchEvent(
-        new CustomEvent("show-toast", {
-          detail: { message: "An unexpected error occurred", type: "error" },
-        }),
-      );
-    } finally {
-      setIsPublishing(false);
     }
   };
 
@@ -749,7 +689,7 @@ export const Header: React.FC<HeaderProps> = ({
           onToggleEnabled={handleToggleMcp}
         />
         {pageId && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border-r border-gray-200 pr-3 mr-1">
             {/* Preview — opens preview-server */}
             <button
               onClick={handleOpenPreview}
@@ -923,18 +863,6 @@ export const Header: React.FC<HeaderProps> = ({
             Save
           </button>
         )}
-        <button
-          onClick={handlePublish}
-          disabled={isPublishing || !selectedProduct}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isPublishing ? (
-            <Loader2 className="w-4 h-4 text-white animate-spin" />
-          ) : (
-            <Save className="w-4 h-4 text-white" />
-          )}
-          {isPublishing ? "Publishing..." : "Publish"}
-        </button>
       </div>
 
       <HistoryPanel
