@@ -11,6 +11,7 @@ import { useProjectActions } from "@/hooks/useProjectActions";
 import { useAiOptimizer } from "@/hooks/useAiOptimizer";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { AgentChat } from "./AgentChat";
+import { AIStatusBar } from "./AIStatusBar";
 import { useMCPCommandListener } from "@/hooks/useMCPCommandListener";
 import { MCPDebugPanel } from "./MCPDebugPanel";
 import { ScanningOverlay } from "./ScanningOverlay";
@@ -198,7 +199,11 @@ export default function FunnelBuilder({ initialProducts, storeId, accessToken, d
         )}
       </div>
 
-      <AgentChat />
+      {pageId && tenantId && (
+        <AIStatusBar pageId={pageId} tenantId={tenantId} />
+      )}
+
+      <AgentChat pageId={pageId} tenantId={tenantId} />
 
       {/* MCP Debug Tools */}
       <ScanningOverlay />
