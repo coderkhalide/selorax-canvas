@@ -320,6 +320,7 @@ export function StdbSyncProvider({
               // MUST use raw SQL — query builder generates wrong column names (camelCase vs snake_case)
               `SELECT * FROM canvas_node WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
               `SELECT * FROM active_cursor WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
+              `SELECT * FROM ai_operation WHERE page_id = '${pageId}' AND tenant_id = '${tenantId}'`,
             ]);
         })
         .onDisconnect(() => console.log("[StdbSync] disconnected")),
