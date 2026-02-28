@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useCanvas } from '@/context/CanvasContext';
-import { DropZoneLine } from './DropZoneIndicator';
+import { DropZoneLine, DropHereHint } from './DropZoneIndicator';
 import FloatingToolbar from './FloatingToolbar';
 
 function getNodeLabel(node: any): string {
@@ -76,12 +76,15 @@ export default function CanvasNode({ node, depth, dropInfo }: CanvasNodeProps) {
   if (nodeType === 'layout') {
     return (
       <div ref={setRef} style={{ ...parseStyles(node.styles), ...wrapperStyle }}
-        className="canvas-node-layout" data-node-id={node.id}
+        className={`canvas-node-layout${isDropInside ? ' is-drop-inside' : ''}`} data-node-id={node.id}
         onClick={handleClick}>
         {isDropTarget && dropInfo?.position === 'before' && <DropZoneLine position="before" />}
         {DragHandle}
         {isSelected && !isDragging && (
           <FloatingToolbar nodeId={node.id} nodeName={getNodeLabel(node)} />
+        )}
+        {(!node.children || node.children.length === 0) && !isDragging && (
+          <DropHereHint />
         )}
         {node.children?.map((child: any) => (
           <CanvasNode key={child.id} node={child} depth={depth + 1} dropInfo={dropInfo} />

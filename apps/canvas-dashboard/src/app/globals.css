@@ -147,14 +147,33 @@ body {
 
 /* Drop zone indicators */
 .drop-zone-line {
-  position: absolute; left: 0; right: 0; height: 2px;
-  background: var(--brand-navy); border-radius: 1px; z-index: 20; pointer-events: none;
+  position: absolute; left: 4px; right: 4px; height: 3px;
+  background: var(--brand-navy); border-radius: 2px;
+  z-index: 20; pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(45,47,143,0.12), 0 0 8px rgba(45,47,143,0.25);
 }
-.drop-zone-line.before { top: -1px; }
-.drop-zone-line.after  { bottom: -1px; }
-.drop-zone-inside {
-  outline: 2px dashed var(--brand-navy) !important;
-  background: var(--brand-navy-light) !important;
+.drop-zone-line::before {
+  content: '';
+  position: absolute; left: -3px; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-navy);
+}
+.drop-zone-before { top: -2px; }
+.drop-zone-after  { bottom: -2px; }
+
+.drop-here-hint {
+  min-height: 56px; margin: 8px;
+  border: 2px dashed var(--border);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); font-size: 12px; font-weight: 500;
+  pointer-events: none; transition: all 0.15s ease;
+  user-select: none;
+}
+.canvas-node-layout.is-drop-inside .drop-here-hint {
+  border-color: var(--brand-navy);
+  background: rgba(45,47,143,0.04);
+  color: var(--brand-navy);
 }
 
 /* ── Rubber-band ── */
