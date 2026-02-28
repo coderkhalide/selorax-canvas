@@ -142,6 +142,8 @@ export default function FunnelBuilder({ initialProducts, storeId, accessToken, d
         onImport={handleImportClick}
         onScreenshot={handleScreenshot}
         setShowCssEditor={setShowCssEditor}
+        pageId={pageId}
+        tenantId={tenantId}
       />
 
       <div className="flex-1 flex relative overflow-hidden">
