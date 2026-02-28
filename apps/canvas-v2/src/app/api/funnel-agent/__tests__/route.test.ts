@@ -101,7 +101,7 @@ describe("POST /api/funnel-agent", () => {
     const { POST } = await import("../route");
 
     const req = makeRequest(
-      { messages: [{ role: "user", content: "test" }], tenantId: "body_tenant" },
+      { messages: [{ role: "user", content: "test" }], tenantId: "body_tenant", pageId: "pg-1" },
       { "x-tenant-id": "header_tenant" }
     );
     await POST(req);
@@ -114,7 +114,7 @@ describe("POST /api/funnel-agent", () => {
     vi.stubGlobal("fetch", mockUpstreamStream(["Hello", " world"]));
     const { POST } = await import("../route");
 
-    const req = makeRequest({ messages: [{ role: "user", content: "hi" }] });
+    const req = makeRequest({ messages: [{ role: "user", content: "hi" }], pageId: "pg-1" });
     const res = await POST(req);
 
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
@@ -148,6 +148,7 @@ describe("POST /api/funnel-agent", () => {
           ],
         },
       ],
+      pageId: "pg-1",
     });
     await POST(req);
 
@@ -167,7 +168,7 @@ describe("POST /api/funnel-agent", () => {
     );
     const { POST } = await import("../route");
 
-    const req = makeRequest({ messages: [{ role: "user", content: "test" }] });
+    const req = makeRequest({ messages: [{ role: "user", content: "test" }], pageId: "pg-1" });
     const res = await POST(req);
     expect(res.status).toBe(503);
   });
@@ -183,6 +184,7 @@ describe("POST /api/funnel-agent", () => {
         { role: "assistant", content: "Response" },
         { role: "user", content: "Last user message" },
       ],
+      pageId: "pg-1",
     });
     await POST(req);
 
@@ -191,18 +193,16 @@ describe("POST /api/funnel-agent", () => {
     expect(sent.prompt).toBe("Last user message");
   });
 
-  it("defaults page_id to 'unknown' when pageId is absent", async () => {
-    vi.stubGlobal("fetch", mockUpstreamStream(["ok"]));
+  it("returns 400 when pageId is absent", async () => {
     const { POST } = await import("../route");
 
     const req = makeRequest({
       messages: [{ role: "user", content: "test" }],
     });
-    await POST(req);
-
-    const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    const sent = JSON.parse(options.body);
-    expect(sent.page_id).toBe("unknown");
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("pageId");
   });
 
   it("defaults tenant_id to store_001 when no header or body tenantId", async () => {
@@ -211,12 +211,46 @@ describe("POST /api/funnel-agent", () => {
 
     const req = makeRequest({
       messages: [{ role: "user", content: "test" }],
+      pageId: "pg-1",
     });
     await POST(req);
 
     const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const sent = JSON.parse(options.body);
     expect(sent.tenant_id).toBe("store_001");
+  });
+
+  it("forwards selected_node_id to backend when provided", async () => {
+    const fetchMock = mockUpstreamStream(["ok"]);
+    vi.stubGlobal("fetch", fetchMock);
+    const { POST } = await import("../route");
+
+    const req = makeRequest({
+      messages: [{ role: "user", content: "Style this node" }],
+      pageId: "pg-1",
+      selected_node_id: "node-abc",
+    });
+    await POST(req);
+
+    const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const sent = JSON.parse(options.body);
+    expect(sent.selected_node_id).toBe("node-abc");
+  });
+
+  it("omits selected_node_id from backend body when not provided", async () => {
+    const fetchMock = mockUpstreamStream(["ok"]);
+    vi.stubGlobal("fetch", fetchMock);
+    const { POST } = await import("../route");
+
+    const req = makeRequest({
+      messages: [{ role: "user", content: "test" }],
+      pageId: "pg-1",
+    });
+    await POST(req);
+
+    const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const sent = JSON.parse(options.body);
+    expect(sent).not.toHaveProperty("selected_node_id");
   });
 
   it("returns 400 when prompt is empty string after joining multimodal parts", async () => {
@@ -248,7 +282,7 @@ describe("POST /api/funnel-agent", () => {
     );
     const { POST } = await import("../route");
 
-    const req = makeRequest({ messages: [{ role: "user", content: "test" }] });
+    const req = makeRequest({ messages: [{ role: "user", content: "test" }], pageId: "pg-1" });
     const res = await POST(req);
     expect(res.status).toBe(500);
     const body = await res.json();

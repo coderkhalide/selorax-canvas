@@ -41,6 +41,13 @@ export async function POST(req: NextRequest) {
     }
 
     const pageId: string | undefined = body.pageId;
+    if (!pageId) {
+      return new Response(
+        JSON.stringify({ error: "pageId is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const selectedNodeId: string | undefined = body.selected_node_id;
 
     const upstream = await fetch(`${BACKEND_URL}/api/ai/canvas`, {
       method: "POST",
@@ -50,8 +57,9 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         prompt,
-        page_id: pageId ?? "unknown",
+        page_id: pageId,
         tenant_id: tenantId,
+        ...(selectedNodeId ? { selected_node_id: selectedNodeId } : {}),
       }),
     });
 
