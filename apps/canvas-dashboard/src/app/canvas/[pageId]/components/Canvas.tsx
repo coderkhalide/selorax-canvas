@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import CanvasNode from './CanvasNode';
 import { buildSelectionRect, rectsIntersect, type Point } from '@/utils/rubber-band';
 import { useCanvas } from '@/context/CanvasContext';
@@ -18,6 +19,9 @@ export default function Canvas({
   const [rubberStart, setRubberStart] = useState<Point | null>(null);
   const [rubberEnd, setRubberEnd] = useState<Point | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  // Register the entire viewport as a droppable so panel drags land here when
+  // the canvas is empty or the cursor is over whitespace
+  const { setNodeRef: setViewportRef } = useDroppable({ id: 'canvas-root' });
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Only left button
@@ -96,6 +100,7 @@ export default function Canvas({
 
   return (
     <div
+      ref={setViewportRef}
       className="canvas-viewport"
       onClick={(e) => {
         if (e.target === e.currentTarget) selectNode(null);

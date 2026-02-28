@@ -10,12 +10,32 @@ export default function AddStepModal({
   funnelId: string; stepOrder: number; tenantId: string; pages: Page[];
   onClose: () => void; onAdded: () => void;
 }) {
-  const [pageId,   setPageId]   = useState('');
-  const [stepType, setStepType] = useState<string>('landing');
-  const [name,     setName]     = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
+  const [pageId,      setPageId]      = useState('');
+  const [newPageName, setNewPageName] = useState<string | null>(null); // name of just-created page
+  const [stepType,    setStepType]    = useState<string>('landing');
+  const [name,        setName]        = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [creating,    setCreating]    = useState(false); // creating a new page
+  const [error,       setError]       = useState('');
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+
+  const handleCreatePage = async () => {
+    const pageName = name.trim() || `Step ${stepOrder + 1} Page`;
+    setCreating(true); setError('');
+    const res = await fetch(`${backend}/api/pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+      body: JSON.stringify({ name: pageName, pageType: stepType }),
+    });
+    setCreating(false);
+    if (res.ok) {
+      const page = await res.json();
+      setPageId(page.id);
+      setNewPageName(page.name);
+    } else {
+      setError('Failed to create page.');
+    }
+  };
 
   const handleAdd = async () => {
     setLoading(true); setError('');
@@ -53,12 +73,33 @@ export default function AddStepModal({
           </div>
           <div className="field-group">
             <label className="field-label">Page</label>
-            <select className="field-select" value={pageId} onChange={e => setPageId(e.target.value)}>
-              <option value="">— Select a page —</option>
-              {pages.map(p => (
-                <option key={p.id} value={p.id}>{p.name} · /{p.slug}</option>
-              ))}
-            </select>
+            {newPageName ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--text-primary)', padding: '8px 12px', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: 6 }}>
+                  ✓ {newPageName}
+                </span>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setPageId(''); setNewPageName(null); }}>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select className="field-select" style={{ flex: 1 }} value={pageId} onChange={e => setPageId(e.target.value)}>
+                  <option value="">— Select a page —</option>
+                  {pages.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} · /{p.slug}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ whiteSpace: 'nowrap' }}
+                  onClick={handleCreatePage}
+                  disabled={creating}
+                >
+                  {creating ? '...' : '+ New Page'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="field-group">
             <label className="field-label">Step Type</label>

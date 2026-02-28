@@ -76,9 +76,13 @@ function CanvasUI({
   const handleDragOver = useCallback((e: DragOverEvent) => {
     if (!e.over) { setDropInfo(null); return; }
     const overId   = e.over.id as string;
+    // 'canvas-root' is the droppable viewport — no position indicator needed
+    if (overId === 'canvas-root') { setDropInfo(null); return; }
     const overNode = nodes.get(overId);
     if (!overNode) { setDropInfo(null); return; }
-    const y   = (e.activatorEvent as MouseEvent).clientY;
+    // Current Y = drag-start clientY + cumulative delta (activatorEvent is the mousedown, not current)
+    const startY = (e.activatorEvent as MouseEvent).clientY;
+    const y   = startY + (e.delta?.y ?? 0);
     const el  = document.querySelector(`[data-node-id="${overId}"]`);
     const rect = el?.getBoundingClientRect();
     if (!rect) { setDropInfo(null); return; }
@@ -106,6 +110,22 @@ function CanvasUI({
         defaultProps: Record<string, unknown>;
         defaultStyles: Record<string, unknown>;
       };
+
+      // Dropped on the canvas viewport itself (empty canvas or whitespace)
+      if (over.id === 'canvas-root') {
+        const rootNodes = Array.from(nodes.values())
+          .filter(n => n.parentId === null)
+          .sort((a, b) => a.order.localeCompare(b.order));
+        insertNode({
+          pageId, tenantId, nodeType, parentId: null,
+          order: resolveDropOrder(rootNodes.at(-1)?.order, undefined),
+          props: JSON.stringify(defaultProps ?? {}),
+          styles: JSON.stringify(defaultStyles ?? {}),
+          settings: '{}',
+        });
+        return;
+      }
+
       const overNode = nodes.get(over.id as string);
       if (!overNode) return;
 
