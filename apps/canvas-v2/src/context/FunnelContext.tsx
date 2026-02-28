@@ -386,7 +386,8 @@ const DEFAULT_SCHEMES: Record<string, ColorScheme> = {
 
 // ─── Remote merge helpers ──────────────────────────────────────────────────
 
-function removeElementById(elements: FunnelElement[], id: string): FunnelElement[] {
+/** @internal — exported for unit testing only */
+export function removeElementById(elements: FunnelElement[], id: string): FunnelElement[] {
   return elements
     .filter((el) => el.id !== id)
     .map((el) =>
@@ -396,7 +397,8 @@ function removeElementById(elements: FunnelElement[], id: string): FunnelElement
     );
 }
 
-function findElementById(elements: FunnelElement[], id: string): FunnelElement | null {
+/** @internal — exported for unit testing only */
+export function findElementById(elements: FunnelElement[], id: string): FunnelElement | null {
   for (const el of elements) {
     if (el.id === id) return el;
     if (el.children) {
@@ -407,7 +409,8 @@ function findElementById(elements: FunnelElement[], id: string): FunnelElement |
   return null;
 }
 
-function updateElementById(
+/** @internal — exported for unit testing only */
+export function updateElementById(
   elements: FunnelElement[],
   id: string,
   updated: Partial<FunnelElement>
