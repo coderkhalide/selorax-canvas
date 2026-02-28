@@ -13,7 +13,7 @@ export default function FunnelCard({
 }: { funnel: FunnelSummary; onDelete: (id: string) => void; deleting: boolean }) {
   const stepCount   = funnel.steps?.length ?? 0;
   const firstPageId = funnel.steps?.[0]?.pageId;
-  const previewBase = 'http://localhost:3004';
+  const previewBase = process.env.NEXT_PUBLIC_PREVIEW_URL ?? 'http://localhost:3004';
 
   return (
     <div className={`funnel-card${deleting ? ' funnel-card-deleting' : ''}`}>

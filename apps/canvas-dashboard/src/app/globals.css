@@ -219,18 +219,6 @@ body {
   border-color: var(--brand-navy); color: var(--brand-navy);
 }
 
-/* ── Buttons ── */
-.btn {
-  padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
-  cursor: pointer; border: none; transition: opacity 0.15s;
-}
-.btn:hover { opacity: 0.9; }
-.btn-primary { background: var(--brand-navy); color: #fff; }
-.btn-orange  { background: var(--brand-orange); color: #fff; }
-.btn-secondary {
-  background: var(--bg-app); color: var(--text-primary);
-  border: 1px solid var(--border);
-}
 
 /* ── Publish Button ── */
 .publish-btn {
