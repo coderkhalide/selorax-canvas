@@ -93,6 +93,7 @@ function toElementType(
     "input",
     "icon",
     "user-checkout",
+    "skeleton",
   ];
   if (tag && validTags.includes(tag as ElementType)) return tag as ElementType;
   return "paragraph";
@@ -102,7 +103,11 @@ function toElementType(
 // Flat → Tree
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ElWithMeta = FunnelElement & { _order: string; _parentId: string | null };
+type ElWithMeta = FunnelElement & {
+  _order: string;
+  _parentId: string | null;
+  _componentUrl?: string;
+};
 
 export function flatNodesToTree(flatNodes: RawCanvasNode[]): FunnelElement[] {
   const nodeMap = new Map<string, ElWithMeta>();
@@ -142,6 +147,7 @@ export function flatNodesToTree(flatNodes: RawCanvasNode[]): FunnelElement[] {
       children: [],
       _order: raw.order,
       _parentId: raw.parentId ?? null,
+      _componentUrl: raw.componentUrl ?? undefined,
     };
     nodeMap.set(raw.id, el);
   }
@@ -167,8 +173,9 @@ export function flatNodesToTree(flatNodes: RawCanvasNode[]): FunnelElement[] {
   function sortAndStrip(els: FunnelElement[]): FunnelElement[] {
     return (els as ElWithMeta[])
       .sort((a, b) => a._order.localeCompare(b._order))
-      .map(({ _order, _parentId, children, ...rest }) => ({
+      .map(({ _order, _parentId, _componentUrl, children, ...rest }) => ({
         ...rest,
+        ...(_componentUrl ? { _componentUrl } : {}),
         children:
           children && children.length > 0
             ? sortAndStrip(children)
@@ -274,8 +281,8 @@ export function computeOps(
           styles: entry.styles,
           props: entry.props,
           settings: entry.settings,
-          componentUrl: (entry.el as FunnelElement & { componentUrl?: string })
-            .componentUrl ?? null,
+          componentUrl: (entry.el as FunnelElement & { _componentUrl?: string })
+            ._componentUrl ?? null,
           componentVersion: null,
           componentId: null,
         },
