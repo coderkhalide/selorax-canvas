@@ -39,10 +39,16 @@ function StdbSyncInner({
   const connRef = useRef<DbConnection | null>(null);
   // Track previous STDB node snapshots to detect remote changes
   const prevNodesRef = useRef<Map<string, RawCanvasNode>>(new Map());
+  // Track local user's identity so LiveCursors can filter out self
+  const currentUserIdRef = useRef<string | undefined>(undefined);
 
   // Keep connRef in sync with conn without triggering re-renders
+  // Also capture the local user's identity for cursor filtering
   useEffect(() => {
     connRef.current = conn;
+    if (conn) {
+      currentUserIdRef.current = (conn as any).identity?.toHexString?.();
+    }
   }, [conn]);
 
   // Reset initialization when pageId changes (user navigated to a different page)
@@ -88,7 +94,9 @@ function StdbSyncInner({
         !prev ||
         prev.styles !== node.styles ||
         prev.props !== node.props ||
-        prev.settings !== node.settings;
+        prev.settings !== node.settings ||
+        prev.parentId !== node.parentId ||
+        prev.order !== node.order;
       if (changed) {
         const element = canvasNodeToElement(node);
         if (element) {
@@ -250,7 +258,13 @@ function StdbSyncInner({
     };
   }, [handleMouseMove]);
 
-  return <LiveCursors pageId={pageId} tenantId={tenantId} />;
+  return (
+    <LiveCursors
+      pageId={pageId}
+      tenantId={tenantId}
+      currentUserId={currentUserIdRef.current}
+    />
+  );
 }
 
 // ── Outer: creates SpacetimeDB connection ─────────────────────────────────────
