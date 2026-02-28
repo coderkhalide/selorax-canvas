@@ -8,7 +8,8 @@ stdb-generate:
 	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/canvas-backend/src/module_bindings --module-path $(CURDIR)/spacetime
 	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/canvas-dashboard/src/module_bindings --module-path $(CURDIR)/spacetime
 	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/preview-server/src/module_bindings --module-path $(CURDIR)/spacetime
-	@echo "✓ Bindings generated for backend, dashboard, preview-server"
+	spacetime generate --lang typescript --out-dir $(CURDIR)/apps/canvas-v2/src/module_bindings --module-path $(CURDIR)/spacetime
+	@echo "✓ Bindings generated for backend, dashboard, preview-server, canvas-v2"
 
 # Full deploy: publish to Maincloud + regenerate bindings
 stdb-deploy: stdb-publish stdb-generate

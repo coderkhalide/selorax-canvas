@@ -127,7 +127,7 @@ export const insert_node = spacetimedb.reducer({
 }, (ctx, args) => {
   ctx.db.canvas_node.insert({
     ...args,
-    locked_by: null, locked_at: null,
+    locked_by: undefined, locked_at: undefined,
     updated_by: ctx.sender.toHexString(),
     updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
@@ -213,7 +213,7 @@ export const unlock_node = spacetimedb.reducer({
   if (!node) return;
   if (node.locked_by !== ctx.sender.toHexString()) return;
   ctx.db.canvas_node.id.update({
-    ...node, locked_by: null, locked_at: null,
+    ...node, locked_by: undefined, locked_at: undefined,
     updated_by: ctx.sender.toHexString(), updated_at: ctx.timestamp.microsSinceUnixEpoch,
   });
 });
@@ -254,9 +254,9 @@ export const create_ai_operation = spacetimedb.reducer({
 }, (ctx, args) => {
   ctx.db.ai_operation.insert({
     ...args, status: 'thinking', current_action: 'Understanding your request...',
-    progress: 0, plan: null,
+    progress: 0, plan: undefined,
     nodes_created: '[]', nodes_modified: '[]', nodes_deleted: '[]',
-    error_message: null, started_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: null,
+    error_message: undefined, started_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: undefined,
   });
 });
 
@@ -277,8 +277,8 @@ export const create_component_build = spacetimedb.reducer({
 }, (ctx, args) => {
   ctx.db.component_build.insert({
     ...args, status: 'generating', progress: 0,
-    preview_code: null, compiled_url: null, component_id: null,
-    created_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: null,
+    preview_code: undefined, compiled_url: undefined, component_id: undefined,
+    created_at: ctx.timestamp.microsSinceUnixEpoch, completed_at: undefined,
   });
 });
 
