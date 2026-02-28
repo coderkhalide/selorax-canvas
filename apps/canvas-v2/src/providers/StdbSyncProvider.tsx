@@ -124,6 +124,7 @@ function StdbSyncInner({
       // Rebuild the full tree from the current flat snapshot to place all new
       // nodes under their correct parents (Bug 1 fix).
       const tree = flatNodesToTree(filtered);
+      prevElementsRef.current = tree;   // prevent echo-back: update ref before state so watch-elements effect sees no diff
       setRemoteElements(tree);
     }
 
