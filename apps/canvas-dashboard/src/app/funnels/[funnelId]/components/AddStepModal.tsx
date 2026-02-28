@@ -20,20 +20,23 @@ export default function AddStepModal({
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
 
   const handleCreatePage = async () => {
-    const pageName = name.trim() || `Step ${stepOrder + 1} Page`;
+    const title = name.trim() || `Step ${stepOrder + 1} Page`;
+    const slug  = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                  + '-' + Date.now().toString(36);
     setCreating(true); setError('');
     const res = await fetch(`${backend}/api/pages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
-      body: JSON.stringify({ name: pageName, pageType: stepType }),
+      body: JSON.stringify({ slug, title, pageType: stepType }),
     });
     setCreating(false);
     if (res.ok) {
       const page = await res.json();
       setPageId(page.id);
-      setNewPageName(page.name);
+      setNewPageName(page.title ?? page.slug);
     } else {
-      setError('Failed to create page.');
+      const body = await res.json().catch(() => ({}));
+      setError(`Failed to create page. ${JSON.stringify(body)}`);
     }
   };
 
