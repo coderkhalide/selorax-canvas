@@ -70,7 +70,7 @@ const ELEMENTS: Record<string, {
     componentExport: 'HeroSliderComponent',
     aliases: ['hero_slider', 'hero'],
   },
-  carousel: {
+  custom_carousel: {
     importPath: './custom-registry/CusotmCarousel',
     componentExport: 'CustomCarouselComponent',
     aliases: ['custom_slider', 'customSlider'],
@@ -160,21 +160,32 @@ async function main() {
       const adapterPath = path.join(tmpDir, `${slug}.tsx`);
       fs.writeFileSync(adapterPath, makeAdapter(slug, absImportPath, componentExport));
 
-      // Bundle with esbuild
+      // Bundle with esbuild — write:false so we can strip machine-specific path comments
       const outFile = path.join(OUT_DIR, `${slug}.js`);
-      await build({
+      const result = await build({
         entryPoints: [adapterPath],
         bundle: true,
         format: 'esm',
         jsx: 'automatic',
         external: ['react', 'react-dom', 'react/jsx-runtime'],
-        outfile: outFile,
+        write: false,
         // Suppress warnings about browser APIs (window.innerWidth etc.)
         platform: 'browser',
         target: 'es2020',
         // Silence "use client" directive warnings
         logOverride: { 'ignored-bare-import': 'silent' },
+        legalComments: 'none',   // removes license/source comments
+        banner: {},               // no extra banners
       });
+
+      // Strip esbuild's file-path annotation comments (// /path/to/file.tsx lines)
+      // These contain machine-specific temp directory paths and cause non-deterministic output.
+      const rawJs = result.outputFiles[0].text;
+      const cleanJs = rawJs
+        .split('\n')
+        .filter(line => !/^\/\/ .*\.(tsx?|jsx?|js)$/.test(line.trim()))
+        .join('\n');
+      fs.writeFileSync(outFile, cleanJs);
 
       // Add registry entries for all aliases
       for (const alias of aliases) {
