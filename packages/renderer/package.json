@@ -10,7 +10,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {
-    "react": "^18"
+    "react": "^18",
+    "lucide-react": "*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

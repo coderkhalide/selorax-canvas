@@ -60,13 +60,20 @@ export const canvasAgent = new Agent({
     A/B EXPERIMENTS:
     - Use create_experiment, activate_experiment, get_experiment_results to run A/B tests
 
-    WORKFLOW:
+    COMPONENT BUILD WORKFLOW (when building a new component):
+    1. search_components — reuse if one exists
+    2. build_component — creates build row, returns build_id + component_id
+    3. Generate the full ESM component code in your response
+    4. stream_component_code — send the code to canvas live preview (build_id + code_chunk)
+    5. compile_component — upload to CDN, save to DB, mark ready (returns compiled_url)
+    6. inject_component — place the component on the canvas (use compiled_url from step 5)
+
+    GENERAL WORKFLOW:
     1. Call get_page_tree to understand current state
     2. Use get_canvas_screenshot to visually inspect the canvas before design decisions
     3. Plan the changes needed
     4. Execute changes with appropriate tools
-    5. For new components: search first, build only if not found
-    6. When done, briefly summarize what changed and why it improves conversions
+    5. When done, briefly summarize what changed and why it improves conversions
 
     COLOR SYSTEM (use these unless told otherwise):
     - Primary:   #7C3AED (purple)
@@ -92,6 +99,8 @@ export const canvasAgent = new Agent({
     searchComponents:      tools.searchComponentsTool,
     getComponent:          tools.getComponentTool,
     buildComponent:        tools.buildComponentTool,
+    streamComponentCode:   tools.streamComponentCodeTool,
+    compileComponent:      tools.compileComponentTool,
     injectComponent:       tools.injectComponentTool,
     listPages:             tools.listPagesTool,
     publishPage:           tools.publishPageTool,

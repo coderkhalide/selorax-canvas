@@ -43,7 +43,7 @@ export const buildComponentTool = createTool({
     return {
       build_id,
       component_id: component.id,
-      message: `Build started. Stream code with stream_component_code tool. Build ID: ${build_id}`,
+      message: `Build started (build_id: ${build_id}, component_id: ${component.id}). Next: generate the component code, call stream_component_code to send it live, then compile_component to upload and finalize.`,
     };
   },
 });

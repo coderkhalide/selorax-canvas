@@ -67,6 +67,7 @@ export const insertNodeTool = createTool({
       styles:            JSON.stringify(context.styles  ?? {}),
       props:             JSON.stringify(context.props   ?? {}),
       settings:          JSON.stringify(context.settings ?? {}),
+      children_ids:      JSON.stringify([]),
       component_id:      opt(context.component_id),
       component_url:     opt(context.component_url),
       component_version: opt(context.component_version),
