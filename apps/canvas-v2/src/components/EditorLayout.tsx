@@ -5,6 +5,7 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { Zap, X, Wand2, Image as ImageIcon } from "lucide-react";
 import { useFunnel } from "../context/FunnelContext";
 import { AIGenerationPanel } from "./AIGenerationPanel";
+import { AIPromptBar } from "./AIPromptBar";
 
 interface EditorLayoutProps {
   showAiPrompt: boolean;
@@ -23,6 +24,7 @@ interface EditorLayoutProps {
     image?: string | null
   ) => Promise<void>;
   tenantId?: string;
+  pageId?: string;
 }
 
 export const EditorLayout: React.FC<EditorLayoutProps> = ({
@@ -37,6 +39,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
   setSelectedImage,
   generateSpecificComponent,
   tenantId,
+  pageId,
 }) => {
   /* Destructure addElement to support direct template insertion */
   const {
@@ -113,6 +116,10 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
       <main
         className="flex-1 relative bg-gray-100 flex flex-col items-center justify-start overflow-hidden transition-all"
       >
+        {/* AI Prompt Bar — always visible above canvas */}
+        <div className="w-full flex-shrink-0">
+          <AIPromptBar pageId={pageId} tenantId={tenantId} />
+        </div>
         {viewMode === "editor" && (
           <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
             {showAiPrompt && (
