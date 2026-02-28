@@ -16,6 +16,9 @@ export default function ConfigureStepModal({
   const [onSuccess, setOnSuccess] = useState(() => {
     try { return JSON.parse(step.onSuccess).action ?? 'next'; } catch { return 'next'; }
   });
+  const [externalUrl, setExternalUrl] = useState(() => {
+    try { return JSON.parse(step.onSuccess).url ?? ''; } catch { return ''; }
+  });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
@@ -27,7 +30,9 @@ export default function ConfigureStepModal({
       headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
       body: JSON.stringify({
         pageId, stepType, name,
-        onSuccess: { action: onSuccess },
+        onSuccess: onSuccess === 'external'
+          ? { action: 'external', url: externalUrl }
+          : { action: onSuccess },
       }),
     });
     setLoading(false);
@@ -72,6 +77,17 @@ export default function ConfigureStepModal({
               <option value="external">External URL</option>
             </select>
           </div>
+          {onSuccess === 'external' && (
+            <div className="field-group">
+              <label className="field-label">External URL</label>
+              <input
+                className="field-input"
+                value={externalUrl}
+                onChange={e => setExternalUrl(e.target.value)}
+                placeholder="https://example.com/thank-you"
+              />
+            </div>
+          )}
           {error && <p className="field-error">{error}</p>}
         </div>
         <div className="modal-footer">

@@ -30,10 +30,11 @@ export default function FunnelDetailView({
 
   const removeStep = async (stepId: string) => {
     if (!confirm('Remove this step from the funnel?')) return;
-    await fetch(`${backend}/api/funnels/${funnel.id}/steps/${stepId}`, {
+    const res = await fetch(`${backend}/api/funnels/${funnel.id}/steps/${stepId}`, {
       method: 'DELETE', headers: { 'x-tenant-id': tenantId },
     });
-    router.refresh();
+    if (res.ok) { router.refresh(); }
+    else { alert('Failed to remove step. Please try again.'); }
   };
 
   const sortedSteps = [...funnel.steps].sort((a, b) => a.stepOrder - b.stepOrder);
