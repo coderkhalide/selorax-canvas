@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import ClientAnalytics from './ClientAnalytics';
 
 const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:3001';
@@ -7,10 +8,18 @@ export default async function StorePage({ params }: { params: { slug?: string[] 
   const tenantId = process.env.TENANT_ID ?? 'store_001';
   const { pageType, pageSlug } = resolvePageType(slug);
 
-  const res = await fetch(
-    `${BACKEND}/api/serve/${tenantId}/${pageType}/${pageSlug}`,
-    { next: { revalidate: 60 } },
-  );
+  // Read visitor ID from cookie (set client-side by ClientAnalytics on first load)
+  const cookieStore = cookies();
+  const visitorId   = cookieStore.get('_sid')?.value ?? null;
+
+  const url = new URL(`${BACKEND}/api/serve/${tenantId}/${pageType}/${pageSlug}`);
+  if (visitorId) url.searchParams.set('visitorId', visitorId);
+
+  const fetchOpts = visitorId
+    ? { cache: 'no-store' as const }          // personalized — never cache
+    : { next: { revalidate: 60 } as const };  // static — ISR
+
+  const res = await fetch(url.toString(), fetchOpts);
 
   if (!res.ok) {
     return (

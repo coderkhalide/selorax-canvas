@@ -31,10 +31,7 @@ export function ComponentBrowser({ tenantId }: Props) {
     e: React.DragEvent,
     component: RemoteComponent
   ) => {
-    // Use the same drag-data keys that FunnelContext handleDrop reads:
-    //   elementType  → "custom"
-    //   layoutPreset → component.id  (used as customType in addElement)
-    //   variantData  → { componentUrl, name }  (triggers ESM path in addElement)
+    if (!component.componentUrl) { e.preventDefault(); return; }
     e.dataTransfer.setData("elementType", "custom");
     e.dataTransfer.setData("layoutPreset", component.id);
     e.dataTransfer.setData(
@@ -91,10 +88,15 @@ export function ComponentBrowser({ tenantId }: Props) {
             {items.map((component) => (
               <div
                 key={component.id}
-                draggable
+                draggable={!!component.componentUrl}
                 onDragStart={(e) => handleDragStart(e, component)}
                 onDragEnd={() => setDraggingType(null)}
-                className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-grab active:cursor-grabbing group"
+                title={component.componentUrl ? undefined : "Not compiled yet — build this component to use it"}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg group ${
+                  component.componentUrl
+                    ? "hover:bg-gray-50 cursor-grab active:cursor-grabbing"
+                    : "opacity-50 cursor-not-allowed"
+                }`}
               >
                 {component.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -104,13 +106,21 @@ export function ComponentBrowser({ tenantId }: Props) {
                     className="w-8 h-8 rounded object-cover border border-gray-100"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
                     <Package className="w-4 h-4 text-gray-400" />
                   </div>
                 )}
-                <span className="text-xs text-gray-700 font-medium group-hover:text-gray-900">
-                  {component.name}
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs text-gray-700 font-medium group-hover:text-gray-900 truncate">
+                    {component.name}
+                  </span>
+                  {component.isGlobal && (
+                    <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wider">Global</span>
+                  )}
+                  {!component.componentUrl && (
+                    <span className="text-[9px] text-amber-500 font-medium">Not built</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

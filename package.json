@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "test:e2e": "tsx scripts/test-e2e.ts",
-    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview -c cyan,magenta,yellow,green \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\"",
+    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview,canvas-v2 -c cyan,magenta,yellow,green,blue \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\" \"npm run dev --workspace=apps/canvas-v2\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "stdb:publish": "cd spacetime && spacetime publish --server maincloud selorax-canvas",
@@ -33,5 +33,6 @@
     "tsx": "^4.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

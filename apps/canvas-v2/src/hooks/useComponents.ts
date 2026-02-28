@@ -6,7 +6,8 @@ export interface RemoteComponent {
   name: string;
   category: string;
   thumbnailUrl: string | null;
-  componentUrl: string;
+  componentUrl: string | null; // null = not compiled yet
+  isGlobal: boolean;
 }
 
 export function useComponents(tenantId: string) {
@@ -30,18 +31,14 @@ export function useComponents(tenantId: string) {
       // Backend returns a bare array; handle both bare array and wrapped object
       const raw: any[] = Array.isArray(data) ? data : (data.components ?? []);
       setComponents(
-        raw
-          // Each component has a `versions` array (ordered by createdAt desc).
-          // The first entry is the latest version. Filter out components without
-          // any uploaded version (no compiledUrl yet).
-          .filter((c: any) => c.versions?.[0]?.compiledUrl)
-          .map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            category: c.category ?? "General",
-            thumbnailUrl: c.thumbnailUrl ?? null,
-            componentUrl: c.versions[0].compiledUrl as string,
-          }))
+        raw.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          category: c.category ?? "General",
+          thumbnailUrl: c.thumbnailUrl ?? null,
+          componentUrl: c.versions?.[0]?.compiledUrl ?? null,
+          isGlobal: c.tenantId === null,
+        }))
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
