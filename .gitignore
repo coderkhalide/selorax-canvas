@@ -1,6 +1,4 @@
 # Environment
-.env
-.env.local
 .env.*.local
 apps/**/.env.local
 
@@ -42,3 +40,4 @@ prisma/migrations/
 
 # TypeScript
 *.tsbuildinfo
+config.bat
