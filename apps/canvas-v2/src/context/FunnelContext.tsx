@@ -1104,6 +1104,12 @@ export const FunnelProvider: React.FC<{ children: ReactNode }> = ({
               }
 
               base.style = { width: "100%", padding: "10px" };
+            } else if (variantData?.componentUrl) {
+              // Remote ESM component — no static registry entry, load from CDN
+              base.name = variantData.name ?? "Remote Component";
+              base.customType = v;
+              base.data = { componentUrl: variantData.componentUrl };
+              base.style = { width: "100%", padding: "10px" };
             }
           }
 

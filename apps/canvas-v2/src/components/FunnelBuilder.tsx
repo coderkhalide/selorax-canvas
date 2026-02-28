@@ -195,6 +195,7 @@ export default function FunnelBuilder({ initialProducts, storeId, accessToken, d
             selectedImage={selectedImage}
             setSelectedImage={setSelectedImage}
             generateSpecificComponent={generateSpecificComponent}
+            tenantId={tenantId}
           />
         )}
       </div>
