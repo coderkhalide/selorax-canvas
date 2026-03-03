@@ -17,7 +17,7 @@
     "@selorax/types": "*",
     "@selorax/ui": "*",
     "html-to-image": "^1.11.13",
-    "next": "14.2.0",
+    "next": "15.5.10",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "spacetimedb": "^2.0.1"
