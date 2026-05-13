@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node api.js && next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node api.js && next start",
     "lint": "next lint .",
     "mcp:test": "curl -X POST http://localhost:3001/api/mcp -H 'Content-Type: application/json' -d '{\"method\": \"initialize\"}'",
     "mcp:health": "curl http://localhost:3001/api/mcp?health=true",

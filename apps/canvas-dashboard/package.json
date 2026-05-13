@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
+    "dev": "node api.js && next dev -p 3002",
     "build": "next build",
-    "start": "next start",
+    "start": "node api.js && next start",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest"

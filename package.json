@@ -7,9 +7,9 @@
     "spacetime"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "node api.js && turbo run dev",
     "test:e2e": "tsx scripts/test-e2e.ts",
-    "dev:local": "concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview,canvas-v2 -c cyan,magenta,yellow,green,blue \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\" \"npm run dev --workspace=apps/canvas-v2\"",
+    "dev:local": "node api.js && concurrently --kill-others-on-fail -n backend,dashboard,storefront,preview,canvas-v2 -c cyan,magenta,yellow,green,blue \"npm run dev --workspace=apps/canvas-backend\" \"npm run dev --workspace=apps/canvas-dashboard\" \"npm run dev --workspace=apps/storefront\" \"npm run dev --workspace=apps/preview-server\" \"npm run dev --workspace=apps/canvas-v2\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "stdb:publish": "cd spacetime && spacetime publish --server maincloud selorax-canvas",
